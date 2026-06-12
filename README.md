@@ -27,6 +27,29 @@ Core principles:
 ```bash
 uv sync --extra dev
 uv run pytest
+uv run ruff check .
 uv run pulsekeeper --help
-uv run pulsekeeper "вес 84.2 кг"
 ```
+
+## CLI MVP
+
+Parse one message without writing it:
+
+```bash
+uv run pulsekeeper parse "вес 84.2 кг"
+```
+
+Append a Telegram-style health log to local JSONL storage:
+
+```bash
+uv run pulsekeeper log "завтрак: омлет 3 яйца, кофе"
+```
+
+Print a daily or weekly markdown summary:
+
+```bash
+uv run pulsekeeper summary --date 2026-06-12
+uv run pulsekeeper summary --date 2026-06-12 --period week
+```
+
+By default data is stored in `~/.pulsekeeper/health.jsonl`. Use `--file path/to/health.jsonl` for tests or custom storage.
