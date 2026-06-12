@@ -1,8 +1,8 @@
 import json
 from datetime import date
 
-from health_agent.domain import HealthEntry
-from health_agent.storage import JsonlHealthLog
+from pulsekeeper.domain import HealthEntry
+from pulsekeeper.storage import JsonlHealthLog
 
 
 def test_append_entry_writes_one_json_line(tmp_path):

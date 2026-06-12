@@ -1,10 +1,10 @@
-# Health Agent
+# PulseKeeper
 
 Open-source Telegram-first health agent with BYOK LLM support.
 
 ## Product direction
 
-Health Agent is a privacy-first personal health memory agent. It starts as a Telegram bot that can log food, weight, workouts, sleep notes, and health context, then produce daily and weekly summaries.
+PulseKeeper is a privacy-first personal health memory agent. It starts as a Telegram bot that can log food, weight, workouts, sleep notes, and health context, then produce daily and weekly summaries.
 
 Core principles:
 
@@ -27,6 +27,6 @@ Core principles:
 ```bash
 uv sync --extra dev
 uv run pytest
-uv run health-agent --help
-uv run health-agent "вес 84.2 кг"
+uv run pulsekeeper --help
+uv run pulsekeeper "вес 84.2 кг"
 ```

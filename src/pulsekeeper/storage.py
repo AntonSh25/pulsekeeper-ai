@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from health_agent.domain import HealthEntry
+from pulsekeeper.domain import HealthEntry
 
 
 class JsonlHealthLog:

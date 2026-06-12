@@ -1,8 +1,8 @@
 import typer
 
-from health_agent.domain import parse_health_log
+from pulsekeeper.domain import parse_health_log
 
-app = typer.Typer(help="Health Agent CLI")
+app = typer.Typer(help="PulseKeeper CLI")
 
 
 @app.command()

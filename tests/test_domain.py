@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from health_agent.domain import HealthEntry, parse_health_log
+from pulsekeeper.domain import HealthEntry, parse_health_log
 
 
 def test_parse_weight_log_from_russian_text():
