@@ -82,3 +82,14 @@ uv run pulsekeeper telegram-update '{"message":{"chat":{"id":555},"from":{"id":1
 ```
 
 The transport layer extracts `chat.id`, `from.id`, and `text`, then delegates to the same adapter/core path.
+
+A single polling iteration can be tested from a fixture without a bot token:
+
+```bash
+cat > /tmp/pulsekeeper-update.json <<'JSON'
+{"ok": true, "result": [{"update_id": 42, "message": {"chat": {"id": 555}, "from": {"id": 111}, "text": "вес 84.2 кг"}}]}
+JSON
+uv run pulsekeeper telegram-poll-once --fixture /tmp/pulsekeeper-update.json --offset 41
+```
+
+This exercises the polling path while keeping live Telegram credentials out of tests and logs.

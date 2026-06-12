@@ -123,3 +123,32 @@ def test_telegram_update_command_handles_telegram_update_json(tmp_path):
     assert "Записал: weight" in result.stdout
     log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
     assert log.read_all()[0].kind == "weight"
+
+
+def test_telegram_poll_once_command_uses_fixture_without_token(tmp_path):
+    storage_dir = tmp_path / "pulsekeeper"
+    fixture_path = tmp_path / "updates.json"
+    fixture_path.write_text(
+        '{"ok": true, "result": [{"update_id": 42, "message": {'
+        '"chat": {"id": 555}, "from": {"id": 111}, "text": "вес 84.2 кг"}}]}',
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "telegram-poll-once",
+            "--fixture",
+            str(fixture_path),
+            "--storage-dir",
+            str(storage_dir),
+            "--offset",
+            "41",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "next_offset=43" in result.stdout
+    assert "sendMessage chat_id=555" in result.stdout
+    log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
+    assert log.read_all()[0].kind == "weight"

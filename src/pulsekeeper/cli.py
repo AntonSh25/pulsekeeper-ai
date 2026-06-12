@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
@@ -11,6 +11,7 @@ from pulsekeeper.domain import parse_health_log
 from pulsekeeper.storage import JsonlHealthLog
 from pulsekeeper.summary import summarize_entries
 from pulsekeeper.telegram_adapter import handle_telegram_text
+from pulsekeeper.telegram_polling import TelegramBotApiClient, poll_once
 from pulsekeeper.telegram_transport import handle_telegram_update
 
 app = typer.Typer(help="PulseKeeper CLI")
@@ -77,3 +78,30 @@ def telegram_update(
     outbound = handle_telegram_update(json.loads(update_json), storage_dir=storage_dir)
     if outbound is not None:
         typer.echo(outbound.text)
+
+
+class FixtureTelegramHttpClient:
+    def __init__(self, fixture: Path) -> None:
+        self.fixture = fixture
+
+    def get_json(self, url: str, params: dict[str, Any]) -> dict[str, Any]:
+        return json.loads(self.fixture.read_text(encoding="utf-8"))
+
+    def post_json(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
+        typer.echo(f"sendMessage chat_id={payload['chat_id']} text={payload['text']}")
+        return {"ok": True, "result": True}
+
+
+@app.command("telegram-poll-once")
+def telegram_poll_once(
+    fixture: Annotated[Path, typer.Option("--fixture")],
+    storage_dir: Annotated[Path, typer.Option("--storage-dir")] = DEFAULT_STORAGE_DIR,
+    offset: Annotated[int | None, typer.Option("--offset")] = None,
+) -> None:
+    """Run one Telegram polling iteration from a fixture, without live network calls."""
+    client = TelegramBotApiClient(
+        token="fixture-token",
+        http_client=FixtureTelegramHttpClient(fixture),
+    )
+    next_offset = poll_once(client, storage_dir=storage_dir, offset=offset, timeout=0)
+    typer.echo(f"next_offset={next_offset}")
