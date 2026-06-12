@@ -13,6 +13,7 @@ from pulsekeeper.telegram_adapter import handle_telegram_text
 
 app = typer.Typer(help="PulseKeeper CLI")
 DEFAULT_LOG_PATH = Path.home() / ".pulsekeeper" / "health.jsonl"
+DEFAULT_STORAGE_DIR = Path.home() / ".pulsekeeper"
 
 
 @app.command()
@@ -54,7 +55,12 @@ def summary(
 @app.command("telegram-handle")
 def telegram_handle(
     text: str,
-    file: Annotated[Path, typer.Option("--file", "-f")] = DEFAULT_LOG_PATH,
+    file: Annotated[Path | None, typer.Option("--file", "-f")] = None,
+    storage_dir: Annotated[Path, typer.Option("--storage-dir")] = DEFAULT_STORAGE_DIR,
+    user_id: Annotated[str | None, typer.Option("--user-id")] = None,
 ) -> None:
     """Simulate handling one Telegram message locally."""
-    typer.echo(handle_telegram_text(text, log_path=file))
+    if user_id is None:
+        typer.echo(handle_telegram_text(text, log_path=file or DEFAULT_LOG_PATH))
+        return
+    typer.echo(handle_telegram_text(text, storage_dir=storage_dir, telegram_user_id=user_id))

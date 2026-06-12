@@ -54,6 +54,15 @@ uv run pulsekeeper summary --date 2026-06-12 --period week
 
 By default data is stored in `~/.pulsekeeper/health.jsonl`. Use `--file path/to/health.jsonl` for tests or custom storage.
 
+For Telegram-style multi-user routing, pass `--user-id`. PulseKeeper stores each user's log separately under `~/.pulsekeeper/users/<user-id>/health.jsonl`:
+
+```bash
+uv run pulsekeeper telegram-handle "вес 84.2 кг" --user-id 111
+uv run pulsekeeper telegram-handle "/summary" --user-id 111
+```
+
+Use `--storage-dir path/to/storage` to test this without touching your real local data.
+
 ## Telegram adapter skeleton
 
 The first Telegram-facing layer can be tested locally without a bot token:

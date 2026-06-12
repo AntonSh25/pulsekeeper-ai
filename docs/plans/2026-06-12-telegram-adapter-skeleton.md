@@ -372,9 +372,12 @@ These are next iterations, not this one:
 
 - Real Telegram Bot API polling or webhook.
 - Secrets/config for `TELEGRAM_BOT_TOKEN`.
-- Multi-user storage routing by Telegram user ID.
 - LLM-based parsing or summarization.
 - Reminders/scheduler.
 - Apple Health / Whoop imports.
+
+Implemented in follow-up iteration:
+
+- Multi-user storage routing by Telegram user ID via `--user-id` and `storage_dir/users/<id>/health.jsonl`.
 
 Reason: first we need a clean adapter seam. Then real Telegram integration becomes mostly transport, not business logic.

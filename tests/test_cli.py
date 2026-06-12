@@ -72,3 +72,37 @@ def test_telegram_handle_command_routes_message_through_adapter(tmp_path):
     assert result.exit_code == 0
     assert "Записал: weight" in result.stdout
     assert JsonlHealthLog(log_path).read_all()[0].kind == "weight"
+
+
+def test_telegram_handle_command_can_route_by_user_id(tmp_path):
+    storage_dir = tmp_path / "pulsekeeper"
+
+    first = runner.invoke(
+        app,
+        [
+            "telegram-handle",
+            "вес 84.2 кг",
+            "--storage-dir",
+            str(storage_dir),
+            "--user-id",
+            "111",
+        ],
+    )
+    second = runner.invoke(
+        app,
+        [
+            "telegram-handle",
+            "зал 45 минут",
+            "--storage-dir",
+            str(storage_dir),
+            "--user-id",
+            "222",
+        ],
+    )
+
+    assert first.exit_code == 0
+    assert second.exit_code == 0
+    first_log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
+    second_log = JsonlHealthLog(storage_dir / "users" / "222" / "health.jsonl")
+    assert first_log.read_all()[0].kind == "weight"
+    assert second_log.read_all()[0].kind == "workout"

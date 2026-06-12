@@ -6,6 +6,10 @@ from pathlib import Path
 from pulsekeeper.domain import HealthEntry
 
 
+def user_health_log_path(storage_dir: str | Path, user_id: str) -> Path:
+    return Path(storage_dir) / "users" / user_id / "health.jsonl"
+
+
 class JsonlHealthLog:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)

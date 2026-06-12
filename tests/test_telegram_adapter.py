@@ -46,3 +46,37 @@ def test_telegram_adapter_unknown_command_returns_help():
 
     assert "Не понял команду" in response
     assert "/summary" in response
+
+
+def test_telegram_adapter_routes_each_user_to_own_jsonl_log(tmp_path):
+    storage_dir = tmp_path / "pulsekeeper"
+
+    first_response = handle_telegram_text(
+        "вес 84.2 кг",
+        storage_dir=storage_dir,
+        telegram_user_id="111",
+    )
+    second_response = handle_telegram_text(
+        "завтрак: омлет",
+        storage_dir=storage_dir,
+        telegram_user_id="222",
+    )
+
+    assert first_response == "Записал: weight — вес 84.2 кг"
+    assert second_response == "Записал: food — завтрак: омлет"
+    first_log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
+    second_log = JsonlHealthLog(storage_dir / "users" / "222" / "health.jsonl")
+    assert first_log.read_all()[0].kind == "weight"
+    assert second_log.read_all()[0].kind == "food"
+
+
+def test_telegram_adapter_user_summary_reads_only_that_users_log(tmp_path):
+    storage_dir = tmp_path / "pulsekeeper"
+    handle_telegram_text("завтрак: омлет", storage_dir=storage_dir, telegram_user_id="111")
+    handle_telegram_text("зал 45 минут", storage_dir=storage_dir, telegram_user_id="222")
+
+    response = handle_telegram_text("/summary", storage_dir=storage_dir, telegram_user_id="111")
+
+    assert "- Entries: 1" in response
+    assert "завтрак: омлет" in response
+    assert "зал 45 минут" not in response
