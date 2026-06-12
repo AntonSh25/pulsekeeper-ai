@@ -9,6 +9,7 @@ import typer
 from pulsekeeper.domain import parse_health_log
 from pulsekeeper.storage import JsonlHealthLog
 from pulsekeeper.summary import summarize_entries
+from pulsekeeper.telegram_adapter import handle_telegram_text
 
 app = typer.Typer(help="PulseKeeper CLI")
 DEFAULT_LOG_PATH = Path.home() / ".pulsekeeper" / "health.jsonl"
@@ -48,3 +49,12 @@ def summary(
     start = end if period == "day" else end - timedelta(days=6)
     entries = JsonlHealthLog(file).read_all()
     typer.echo(summarize_entries(entries, start=start, end=end).to_markdown())
+
+
+@app.command("telegram-handle")
+def telegram_handle(
+    text: str,
+    file: Annotated[Path, typer.Option("--file", "-f")] = DEFAULT_LOG_PATH,
+) -> None:
+    """Simulate handling one Telegram message locally."""
+    typer.echo(handle_telegram_text(text, log_path=file))

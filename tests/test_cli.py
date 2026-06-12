@@ -59,3 +59,16 @@ def test_weekly_summary_uses_7_day_window_ending_on_requested_date(tmp_path):
     assert "in range" in result.stdout
     assert "also in range" in result.stdout
     assert "out of range" not in result.stdout
+
+
+def test_telegram_handle_command_routes_message_through_adapter(tmp_path):
+    log_path = tmp_path / "health.jsonl"
+
+    result = runner.invoke(
+        app,
+        ["telegram-handle", "вес 84.2 кг", "--file", str(log_path)],
+    )
+
+    assert result.exit_code == 0
+    assert "Записал: weight" in result.stdout
+    assert JsonlHealthLog(log_path).read_all()[0].kind == "weight"

@@ -53,3 +53,15 @@ uv run pulsekeeper summary --date 2026-06-12 --period week
 ```
 
 By default data is stored in `~/.pulsekeeper/health.jsonl`. Use `--file path/to/health.jsonl` for tests or custom storage.
+
+## Telegram adapter skeleton
+
+The first Telegram-facing layer can be tested locally without a bot token:
+
+```bash
+uv run pulsekeeper telegram-handle "вес 84.2 кг"
+uv run pulsekeeper telegram-handle "/summary"
+uv run pulsekeeper telegram-handle "/summary week"
+```
+
+This command uses the same core parser, JSONL storage, and summary modules that a real Telegram bot/webhook will use later.
