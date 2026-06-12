@@ -74,3 +74,11 @@ uv run pulsekeeper telegram-handle "/summary week"
 ```
 
 This command uses the same core parser, JSONL storage, and summary modules that a real Telegram bot/webhook will use later.
+
+A transport-level Telegram Bot API update can also be tested without network calls:
+
+```bash
+uv run pulsekeeper telegram-update '{"message":{"chat":{"id":555},"from":{"id":111},"text":"вес 84.2 кг"}}'
+```
+
+The transport layer extracts `chat.id`, `from.id`, and `text`, then delegates to the same adapter/core path.

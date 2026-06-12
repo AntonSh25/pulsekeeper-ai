@@ -106,3 +106,20 @@ def test_telegram_handle_command_can_route_by_user_id(tmp_path):
     second_log = JsonlHealthLog(storage_dir / "users" / "222" / "health.jsonl")
     assert first_log.read_all()[0].kind == "weight"
     assert second_log.read_all()[0].kind == "workout"
+
+
+def test_telegram_update_command_handles_telegram_update_json(tmp_path):
+    storage_dir = tmp_path / "pulsekeeper"
+    update_json = (
+        '{"message":{"chat":{"id":555},"from":{"id":111},"text":"вес 84.2 кг"}}'
+    )
+
+    result = runner.invoke(
+        app,
+        ["telegram-update", update_json, "--storage-dir", str(storage_dir)],
+    )
+
+    assert result.exit_code == 0
+    assert "Записал: weight" in result.stdout
+    log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
+    assert log.read_all()[0].kind == "weight"

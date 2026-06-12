@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated
@@ -10,6 +11,7 @@ from pulsekeeper.domain import parse_health_log
 from pulsekeeper.storage import JsonlHealthLog
 from pulsekeeper.summary import summarize_entries
 from pulsekeeper.telegram_adapter import handle_telegram_text
+from pulsekeeper.telegram_transport import handle_telegram_update
 
 app = typer.Typer(help="PulseKeeper CLI")
 DEFAULT_LOG_PATH = Path.home() / ".pulsekeeper" / "health.jsonl"
@@ -64,3 +66,14 @@ def telegram_handle(
         typer.echo(handle_telegram_text(text, log_path=file or DEFAULT_LOG_PATH))
         return
     typer.echo(handle_telegram_text(text, storage_dir=storage_dir, telegram_user_id=user_id))
+
+
+@app.command("telegram-update")
+def telegram_update(
+    update_json: str,
+    storage_dir: Annotated[Path, typer.Option("--storage-dir")] = DEFAULT_STORAGE_DIR,
+) -> None:
+    """Simulate handling one Telegram Bot API update JSON locally."""
+    outbound = handle_telegram_update(json.loads(update_json), storage_dir=storage_dir)
+    if outbound is not None:
+        typer.echo(outbound.text)
