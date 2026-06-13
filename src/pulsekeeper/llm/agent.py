@@ -5,6 +5,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
 
+import httpx
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior, UsageLimitExceeded
@@ -18,6 +19,7 @@ from pulsekeeper.domain import HealthEntryDraft, HealthEntryKind
 from pulsekeeper.storage.health_entries import HealthEntryStore
 
 AuthMode = Literal["api_key", "subscription", "test"]
+SUBSCRIPTION_PROVIDER_API_KEY = "pulsekeeper-hermes-proxy"
 SummaryPeriod = Literal["day", "week", "month", "custom"]
 ToolOutcome = Literal["success", "failed", "denied"]
 
@@ -45,8 +47,22 @@ class LLMConfig:
     auth_mode: AuthMode
     base_url: str | None
     model: str
+    api_key: str | None = None
     timeout: int = 60
     max_tool_iterations: int = 4
+
+    def __repr__(self) -> str:
+        redacted_api_key = "***" if self.api_key else None
+        return (
+            "LLMConfig("
+            f"auth_mode={self.auth_mode!r}, "
+            f"base_url={self.base_url!r}, "
+            f"model={self.model!r}, "
+            f"api_key={redacted_api_key!r}, "
+            f"timeout={self.timeout!r}, "
+            f"max_tool_iterations={self.max_tool_iterations!r}"
+            ")"
+        )
 
 
 @dataclass(frozen=True)
@@ -204,8 +220,8 @@ def build_agent(
     """Build the pydantic-ai agent used by the rest of PulseKeeper.
 
     Tests inject a local FunctionModel/TestModel via ``model``. Non-test configs are wired to an
-    OpenAI-compatible provider using the configured base URL, but callers still supply credentials
-    through the provider environment or later Phase 4 configuration.
+    OpenAI-compatible provider using the configured base URL and optional API key. No network call
+    is made while constructing the agent.
     """
     resolved_model: Model | str
     if model is not None:
@@ -213,7 +229,14 @@ def build_agent(
     elif config.auth_mode == "test":
         raise ValueError("test auth_mode requires an injected pydantic-ai test/function model")
     else:
-        provider = OpenAIProvider(base_url=config.base_url)
+        provider_api_key = (
+            SUBSCRIPTION_PROVIDER_API_KEY if config.auth_mode == "subscription" else config.api_key
+        )
+        provider = OpenAIProvider(
+            base_url=config.base_url,
+            api_key=provider_api_key,
+            http_client=httpx.AsyncClient(timeout=config.timeout),
+        )
         resolved_model = OpenAIModel(config.model, provider=provider)
 
     agent: Agent[AgentDeps, str] = Agent(
