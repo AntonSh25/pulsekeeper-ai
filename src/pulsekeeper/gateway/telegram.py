@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
@@ -22,8 +23,12 @@ HELP_TEXT = (
     "PulseKeeper commands:\n"
     "/start - show the welcome message\n"
     "/help - show this help\n"
+    "/summary - summarize this week's health entries\n"
     "/today - summarize today's health entries\n"
-    "/week - summarize this week's health entries"
+    "/week - summarize this week's health entries\n"
+    "/undo - delete the latest health entry\n"
+    "/profile - show known profile facts\n"
+    "/reminders - show reminder status"
 )
 DENIED_TEXT = "You are not authorized to use this PulseKeeper bot."
 PRIVATE_CHAT_ONLY_TEXT = "PulseKeeper only replies with health data in a private chat."
@@ -125,10 +130,18 @@ class TelegramGateway:
         if command is not None:
             if command in {"start", "help"}:
                 return START_TEXT if command == "start" else HELP_TEXT
+            if command == "summary":
+                return await self._summary_text(user_id=user_id, period="week", now=received_at)
             if command == "today":
                 return await self._summary_text(user_id=user_id, period="today", now=received_at)
             if command == "week":
                 return await self._summary_text(user_id=user_id, period="week", now=received_at)
+            if command == "undo":
+                return await self._undo_text(user_id=user_id)
+            if command == "profile":
+                return await self._profile_text(user_id=user_id)
+            if command == "reminders":
+                return "Reminders are not enabled yet. Reminder scheduling is planned for Phase 9."
             return UNKNOWN_COMMAND_TEXT
 
         context = MessageContext(
@@ -165,6 +178,37 @@ class TelegramGateway:
             lines.extend(f"- {kind}: {count}" for kind, count in sorted(counts.items()))
         else:
             lines.append("No entries found for this period.")
+        return "\n".join(lines)
+
+    async def _undo_text(self, *, user_id: int) -> str:
+        entry = await self.health_entries.get_last(user_id)
+        if entry is None or entry.id is None:
+            return "No health entries to undo."
+        await self.health_entries.soft_delete(entry.id)
+        details = entry.kind
+        if entry.value is not None:
+            details += f" {entry.value:g}"
+            if entry.unit:
+                details += f" {entry.unit}"
+        elif entry.note:
+            details += f": {entry.note}"
+        return f"Deleted last entry: {details}."
+
+    async def _profile_text(self, *, user_id: int) -> str:
+        rows = await self.db.fetchall(
+            """
+            SELECT key, value_json
+            FROM user_profile_facts
+            WHERE user_id = ?
+            ORDER BY key ASC
+            """,
+            (user_id,),
+        )
+        if not rows:
+            return "Profile\nNo profile facts saved yet."
+        lines = ["Profile"]
+        for row in rows:
+            lines.append(f"- {row['key']}: {_format_profile_value(row['value_json'])}")
         return "\n".join(lines)
 
 
@@ -209,6 +253,13 @@ def _command_name(text: str) -> str | None:
     raw = text.split(maxsplit=1)[0][1:]
     command = raw.split("@", maxsplit=1)[0].lower()
     return command or None
+
+
+def _format_profile_value(value_json: str) -> str:
+    value = json.loads(value_json)
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
 def _summary_bounds(

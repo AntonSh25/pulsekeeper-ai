@@ -393,3 +393,241 @@ def test_run_polling_builds_aiogram_bot_without_live_network(monkeypatch):
     run(run_polling(gateway))
 
     assert events == [("bot", "secret-token"), ("poll", "FakeBot")]
+
+
+def test_summary_alias_returns_week_summary_and_bypasses_model(tmp_path, monkeypatch):
+    async def scenario() -> None:
+        from pulsekeeper.gateway import telegram
+        from pulsekeeper.gateway.telegram import TelegramGateway, TelegramGatewayConfig
+
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            store = HealthEntryStore(db)
+            calls = []
+
+            async def fake_run_turn(agent, context, deps):
+                calls.append((agent, context, deps))
+                raise AssertionError("run_turn should not be called")
+
+            monkeypatch.setattr(telegram, "run_turn", fake_run_turn)
+            gateway = TelegramGateway(
+                config=TelegramGatewayConfig(bot_token="secret-token", owner_telegram_user_id=111),
+                db=db,
+                health_entries=store,
+                agent=object(),
+            )
+            user_id = await gateway.resolve_user(telegram_user_id=111, chat_id=222)
+            now = datetime(2026, 6, 13, 12, 0, tzinfo=UTC)
+            await store.append(
+                user_id,
+                HealthEntryDraft(
+                    kind="weight",
+                    value=84.2,
+                    unit="kg",
+                    logged_at=now,
+                    source="telegram",
+                ),
+            )
+
+            reply = await gateway.handle_text(
+                "/summary",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=7,
+                now=now,
+            )
+
+            assert "Week summary" in reply
+            assert "Found 1 health entries" in reply
+            assert "weight: 1" in reply
+            assert calls == []
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
+def test_undo_soft_deletes_last_entry_and_reports_it(tmp_path, monkeypatch):
+    async def scenario() -> None:
+        from pulsekeeper.gateway import telegram
+        from pulsekeeper.gateway.telegram import TelegramGateway, TelegramGatewayConfig
+
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            store = HealthEntryStore(db)
+
+            async def fake_run_turn(agent, context, deps):
+                raise AssertionError("run_turn should not be called")
+
+            monkeypatch.setattr(telegram, "run_turn", fake_run_turn)
+            gateway = TelegramGateway(
+                config=TelegramGatewayConfig(bot_token="secret-token", owner_telegram_user_id=111),
+                db=db,
+                health_entries=store,
+                agent=object(),
+            )
+            user_id = await gateway.resolve_user(telegram_user_id=111, chat_id=222)
+            now = datetime(2026, 6, 13, 12, 0, tzinfo=UTC)
+            first = await store.append(
+                user_id,
+                HealthEntryDraft(
+                    kind="food",
+                    note="breakfast",
+                    logged_at=now - timedelta(minutes=5),
+                    source="telegram",
+                ),
+            )
+            second = await store.append(
+                user_id,
+                HealthEntryDraft(
+                    kind="weight",
+                    value=84.2,
+                    unit="kg",
+                    logged_at=now,
+                    source="telegram",
+                ),
+            )
+
+            reply = await gateway.handle_text(
+                "/undo",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=8,
+                now=now,
+            )
+
+            assert "Deleted last entry" in reply
+            assert "weight" in reply
+            assert await store.get_last(user_id) == first
+            deleted = await db.fetchone(
+                "SELECT deleted_at FROM health_entries WHERE id = ?",
+                (second.id,),
+            )
+            assert deleted is not None
+            assert deleted["deleted_at"] is not None
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
+def test_undo_without_entries_returns_clear_message(tmp_path, monkeypatch):
+    async def scenario() -> None:
+        from pulsekeeper.gateway import telegram
+        from pulsekeeper.gateway.telegram import TelegramGateway, TelegramGatewayConfig
+
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            async def fake_run_turn(agent, context, deps):
+                raise AssertionError("run_turn should not be called")
+
+            monkeypatch.setattr(telegram, "run_turn", fake_run_turn)
+            gateway = TelegramGateway(
+                config=TelegramGatewayConfig(bot_token="secret-token", owner_telegram_user_id=111),
+                db=db,
+                health_entries=HealthEntryStore(db),
+                agent=object(),
+            )
+
+            reply = await gateway.handle_text(
+                "/undo",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=8,
+                now=datetime(2026, 6, 13, 12, 0, tzinfo=UTC),
+            )
+
+            assert "No health entries" in reply
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
+def test_profile_lists_known_profile_facts(tmp_path, monkeypatch):
+    async def scenario() -> None:
+        from pulsekeeper.gateway import telegram
+        from pulsekeeper.gateway.telegram import TelegramGateway, TelegramGatewayConfig
+        from pulsekeeper.storage.memory import ProfileStore
+
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            async def fake_run_turn(agent, context, deps):
+                raise AssertionError("run_turn should not be called")
+
+            monkeypatch.setattr(telegram, "run_turn", fake_run_turn)
+            gateway = TelegramGateway(
+                config=TelegramGatewayConfig(bot_token="secret-token", owner_telegram_user_id=111),
+                db=db,
+                health_entries=HealthEntryStore(db),
+                agent=object(),
+            )
+            user_id = await gateway.resolve_user(telegram_user_id=111, chat_id=222)
+            profile = ProfileStore(db)
+            await profile.set_fact(user_id, "timezone", "Europe/Moscow", source="telegram")
+            await profile.set_fact(
+                user_id,
+                "goal",
+                {"kind": "lose", "target": "slow"},
+                source="telegram",
+            )
+
+            reply = await gateway.handle_text(
+                "/profile",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=9,
+                now=datetime(2026, 6, 13, 12, 0, tzinfo=UTC),
+            )
+
+            assert "Profile" in reply
+            assert "timezone: Europe/Moscow" in reply
+            assert "goal:" in reply
+            assert "lose" in reply
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
+def test_reminders_command_is_explicitly_not_ready_without_model_call(tmp_path, monkeypatch):
+    async def scenario() -> None:
+        from pulsekeeper.gateway import telegram
+        from pulsekeeper.gateway.telegram import TelegramGateway, TelegramGatewayConfig
+
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            calls = []
+
+            async def fake_run_turn(agent, context, deps):
+                calls.append((agent, context, deps))
+                raise AssertionError("run_turn should not be called")
+
+            monkeypatch.setattr(telegram, "run_turn", fake_run_turn)
+            gateway = TelegramGateway(
+                config=TelegramGatewayConfig(bot_token="secret-token", owner_telegram_user_id=111),
+                db=db,
+                health_entries=HealthEntryStore(db),
+                agent=object(),
+            )
+
+            reply = await gateway.handle_text(
+                "/reminders",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=10,
+                now=datetime(2026, 6, 13, 12, 0, tzinfo=UTC),
+            )
+
+            assert "Reminders" in reply
+            assert "not enabled" in reply
+            assert calls == []
+        finally:
+            await db.close()
+
+    run(scenario())
