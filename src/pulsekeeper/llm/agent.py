@@ -169,6 +169,12 @@ class HealthSummaryArgs(BaseModel):
     end: date | None = None
 
 
+class AskClarifyingQuestionArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str
+
+
 async def log_health_entry(ctx: RunContext[AgentDeps], args: LogHealthEntryArgs) -> dict[str, Any]:
     """Log a health journal entry exactly as represented by the user."""
     stored = await ctx.deps.health_entries.append(
@@ -202,6 +208,18 @@ async def get_health_summary(ctx: RunContext[AgentDeps], args: HealthSummaryArgs
             "total_count": len(entries),
             "counts_by_kind": dict(sorted(counts.items())),
         },
+    ).model_dump()
+
+
+async def ask_clarifying_question(
+    ctx: RunContext[AgentDeps],
+    args: AskClarifyingQuestionArgs,
+) -> dict[str, Any]:
+    """Ask a clarification without writing anything to health storage."""
+    return ToolResult(
+        ok=True,
+        summary=args.text,
+        data={"status": "clarification_requested"},
     ).model_dump()
 
 
@@ -244,8 +262,9 @@ def build_agent(
         deps_type=AgentDeps,
         system_prompt=policy_prompt,
     )
-    agent.tool(log_health_entry, name="log_health_entry")
-    agent.tool(get_health_summary, name="get_health_summary")
+    from pulsekeeper.llm.tools import build_default_tool_registry
+
+    build_default_tool_registry().register_with_agent(agent)
     return PulseKeeperAgent(agent=agent, config=config)
 
 

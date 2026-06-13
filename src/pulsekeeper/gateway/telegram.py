@@ -7,13 +7,14 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from aiogram import Bot, Dispatcher, Router
-from aiogram.filters import CommandStart
-from aiogram.types import Message
-
 from pulsekeeper.llm.agent import AgentDeps, MessageContext, PulseKeeperAgent, run_turn
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.sqlite import Database
+
+Bot: Any = None
+Dispatcher: Any = None
+Router: Any = None
+CommandStart: Any = None
 
 START_TEXT = (
     "PulseKeeper is ready. Send normal text to log or ask about your health journal.\n"
@@ -212,15 +213,25 @@ class TelegramGateway:
         return "\n".join(lines)
 
 
-def build_dispatcher(gateway: TelegramGateway) -> Dispatcher:
+def build_dispatcher(gateway: TelegramGateway) -> Any:
+    global CommandStart, Dispatcher, Router
+    if Dispatcher is None or Router is None or CommandStart is None:
+        from aiogram import Dispatcher as AiogramDispatcher
+        from aiogram import Router as AiogramRouter
+        from aiogram.filters import CommandStart as AiogramCommandStart
+
+        Dispatcher = AiogramDispatcher
+        Router = AiogramRouter
+        CommandStart = AiogramCommandStart
+
     router = Router()
 
     @router.message(CommandStart())
-    async def handle_start(message: Message) -> None:
+    async def handle_start(message: Any) -> None:
         await _answer_message(gateway, message)
 
     @router.message()
-    async def handle_message(message: Message) -> None:
+    async def handle_message(message: Any) -> None:
         await _answer_message(gateway, message)
 
     dispatcher = Dispatcher()
@@ -228,7 +239,7 @@ def build_dispatcher(gateway: TelegramGateway) -> Dispatcher:
     return dispatcher
 
 
-async def _answer_message(gateway: TelegramGateway, message: Message) -> None:
+async def _answer_message(gateway: TelegramGateway, message: Any) -> None:
     if message.from_user is None or message.text is None:
         return
     reply = await gateway.handle_text(
@@ -242,6 +253,12 @@ async def _answer_message(gateway: TelegramGateway, message: Message) -> None:
 
 
 async def run_polling(gateway: TelegramGateway) -> None:
+    global Bot
+    if Bot is None:
+        from aiogram import Bot as AiogramBot
+
+        Bot = AiogramBot
+
     bot = Bot(token=gateway.config.bot_token)
     dispatcher = build_dispatcher(gateway)
     await dispatcher.start_polling(bot)
