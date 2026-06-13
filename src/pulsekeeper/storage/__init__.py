@@ -12,6 +12,7 @@ from pulsekeeper.storage.memory import (
     SummaryMemoryStore,
 )
 from pulsekeeper.storage.sqlite import Database
+from pulsekeeper.storage.users import GatewayStateStore, UserStore
 
 
 def user_health_log_path(storage_dir: str | Path, user_id: str) -> Path:
@@ -41,10 +42,12 @@ class JsonlHealthLog:
 __all__ = [
     "ConversationStateStore",
     "Database",
+    "GatewayStateStore",
     "HealthEntryStore",
     "JsonlHealthLog",
     "PreferenceStore",
     "ProfileStore",
     "SummaryMemoryStore",
+    "UserStore",
     "user_health_log_path",
 ]

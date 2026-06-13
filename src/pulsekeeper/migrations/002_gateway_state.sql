@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS telegram_offsets (
+    id INTEGER PRIMARY KEY,
+    bot_profile TEXT NOT NULL UNIQUE,
+    offset INTEGER NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

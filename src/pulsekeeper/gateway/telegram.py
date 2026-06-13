@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pulsekeeper.llm.agent import AgentDeps, MessageContext, PulseKeeperAgent, run_turn
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.sqlite import Database
+from pulsekeeper.storage.users import UserStore
 
 Bot: Any = None
 Dispatcher: Any = None
@@ -60,52 +61,23 @@ class TelegramGateway:
         db: Database,
         health_entries: HealthEntryStore,
         agent: PulseKeeperAgent | Any,
+        users: UserStore | None = None,
     ) -> None:
         self.config = config
         self.db = db
         self.health_entries = health_entries
         self.agent = agent
+        self.users = users or UserStore(db)
 
     async def resolve_user(self, *, telegram_user_id: int, chat_id: int) -> int:
         if telegram_user_id != self.config.owner_telegram_user_id:
             raise PermissionError("telegram user is not in the owner allowlist")
 
-        external_user_id = str(telegram_user_id)
-        async with self.db.transaction() as conn:
-            async with conn.execute(
-                """
-                SELECT user_id
-                FROM gateway_accounts
-                WHERE gateway = 'telegram' AND external_user_id = ?
-                """,
-                (external_user_id,),
-            ) as existing_cursor:
-                existing = await existing_cursor.fetchone()
-            if existing is not None:
-                await conn.execute(
-                    """
-                    UPDATE gateway_accounts
-                    SET external_chat_id = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE gateway = 'telegram' AND external_user_id = ?
-                    """,
-                    (str(chat_id), external_user_id),
-                )
-                return int(existing["user_id"])
-
-            async with conn.execute("INSERT INTO users DEFAULT VALUES") as cursor:
-                user_id = cursor.lastrowid
-            if user_id is None:  # pragma: no cover - sqlite always returns a row id here
-                raise RuntimeError("created user row did not return an id")
-            await conn.execute(
-                """
-                INSERT INTO gateway_accounts (
-                    user_id, gateway, external_user_id, external_chat_id
-                )
-                VALUES (?, 'telegram', ?, ?)
-                """,
-                (user_id, external_user_id, str(chat_id)),
-            )
-        return int(user_id)
+        return await self.users.resolve_gateway_user(
+            gateway="telegram",
+            external_user_id=str(telegram_user_id),
+            external_chat_id=str(chat_id),
+        )
 
     async def handle_text(
         self,

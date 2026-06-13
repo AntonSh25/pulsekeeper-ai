@@ -47,16 +47,21 @@ def test_database_initializes_wal_and_initial_schema(tmp_path):
                 "imports",
                 "import_items",
                 "schema_migrations",
+                "telegram_offsets",
             }
             tables = await table_names(db)
             assert expected_tables <= tables
-            assert "telegram_offsets" not in tables
 
             version = await db.fetchval(
                 "SELECT version FROM schema_migrations WHERE version = ?",
                 ("001_initial_schema",),
             )
             assert version == "001_initial_schema"
+            gateway_state_version = await db.fetchval(
+                "SELECT version FROM schema_migrations WHERE version = ?",
+                ("002_gateway_state",),
+            )
+            assert gateway_state_version == "002_gateway_state"
         finally:
             await db.close()
 
