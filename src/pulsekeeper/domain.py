@@ -118,6 +118,36 @@ class HealthEntry(BaseModel):
         return data
 
 
+class SummaryMemoryDraft(BaseModel):
+    period_start: date
+    period_end: date
+    kind: str
+    text: str
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        validation_alias=AliasChoices("metadata", "metadata_json"),
+    )
+
+
+class SummaryMemory(BaseModel):
+    id: int
+    user_id: int
+    period_start: date
+    period_end: date
+    kind: str
+    text: str
+    metadata: dict[str, Any] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    @field_validator("created_at", "updated_at")
+    @classmethod
+    def normalize_timestamp(cls, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        return _ensure_aware_datetime(value)
+
+
 _WEIGHT_RE = re.compile(r"(?:вес|weight)\s*[:\-]?\s*(\d+(?:[\.,]\d+)?)\s*(кг|kg)?", re.IGNORECASE)
 _FOOD_MARKERS = ("завтрак", "обед", "ужин", "перекус", "еда", "съел", "съела", "food")
 _WORKOUT_MARKERS = ("тренировка", "зал", "пробежка", "workout", "run", "gym")

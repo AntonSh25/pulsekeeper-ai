@@ -5,6 +5,12 @@ from pathlib import Path
 
 from pulsekeeper.domain import HealthEntry
 from pulsekeeper.storage.health_entries import HealthEntryStore
+from pulsekeeper.storage.memory import (
+    ConversationStateStore,
+    PreferenceStore,
+    ProfileStore,
+    SummaryMemoryStore,
+)
 from pulsekeeper.storage.sqlite import Database
 
 
@@ -32,4 +38,13 @@ class JsonlHealthLog:
         return entries
 
 
-__all__ = ["Database", "HealthEntryStore", "JsonlHealthLog", "user_health_log_path"]
+__all__ = [
+    "ConversationStateStore",
+    "Database",
+    "HealthEntryStore",
+    "JsonlHealthLog",
+    "PreferenceStore",
+    "ProfileStore",
+    "SummaryMemoryStore",
+    "user_health_log_path",
+]
