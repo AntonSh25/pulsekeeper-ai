@@ -26,7 +26,10 @@
 - ~~Telegram polling client seam with fixture-based tests.~~
 - ~~Initial `AgentRuntime`, `MessageContext`, `ToolExecutor`, and typed tool call seam.~~
 - ~~Telegram natural-language input no longer uses parser when no model runtime is configured.~~
-- ~~Current quality gate: `uv run pytest -q` passes: 34 tests.~~
+- ~~SQLite `Database`, migrations, `HealthEntryStore`, memory stores, FTS search, and transaction tests.~~
+- ~~Pydantic-ai agent facade and OpenAI-compatible BYOK config seam.~~
+- ~~Aiogram Telegram gateway with owner/private-chat guards and slash commands.~~
+- ~~Current quality gate: `uv run pytest -q` passes: 91 tests.~~
 - ~~Current quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -48,11 +51,11 @@
 - ~~Bootstrap JSONL storage exists from the first scaffold.~~
 - ~~Support per-user Telegram storage path in the bootstrap storage.~~
 - Treat current JSONL code as temporary scaffold/export compatibility, not the canonical database.
-- Add stable entry IDs.
-- Add `created_at` and `updated_at` timestamps.
-- Add optional `source` field: `telegram`, `cli`, `import`, `manual`.
-- Add optional `metadata` for tool-generated structured details.
-- Add schema versioning for future migrations.
+- ~~Add stable entry IDs in SQLite `health_entries`.~~
+- ~~Add `created_at` and `updated_at` timestamps in SQLite.~~
+- ~~Add optional `source` field: `telegram`, `cli`, `import`, `manual`.~~
+- ~~Add optional `metadata` for tool-generated structured details.~~
+- ~~Add schema versioning for future migrations.~~
 - Add export commands:
   - JSONL
   - CSV
@@ -152,14 +155,15 @@ PulseKeeper should have a normal local database layer from the start, following 
 
 ### Implementation tasks
 
-- Create `src/pulsekeeper/db.py` or `src/pulsekeeper/storage/sqlite.py`.
-- Create migration files under `src/pulsekeeper/migrations/`.
-- Add `pulsekeeper db init` or automatic idempotent init at startup.
-- Replace direct `JsonlHealthLog` usage in agent tools with store interfaces.
+- ~~Create `src/pulsekeeper/storage/sqlite.py`.~~
+- ~~Create migration files under `src/pulsekeeper/migrations/`.~~
+- ~~Add automatic idempotent init at gateway startup / store tests.~~
+- Partially replace direct `JsonlHealthLog` usage: aiogram gateway uses SQLite stores; legacy `agent_runtime.py` still writes JSONL.
 - Keep `JsonlHealthLog` only for legacy tests/export until removed.
-- Add tests with temporary SQLite DB files.
-- Add migration tests.
-- Add FTS search tests.
+- ~~Add tests with temporary SQLite DB files.~~
+- ~~Add migration tests.~~
+- ~~Add FTS search tests.~~
+- ~~Add transaction tests.~~
 - Add transaction tests for multi-tool turns.
 
 ---
@@ -244,12 +248,12 @@ Core runtime objects:
 
 ### Implementation tasks
 
-- Add Pydantic schemas for tool arguments.
+- ~~Add Pydantic schemas for currently wired tool arguments.~~
 - Add tool metadata: name, description, input schema, output schema, permissions, safety notes.
 - Add a tool registry.
-- Add a deterministic tool executor.
-- Add model-observable tool results and tool errors.
-- Add tests where fake model responses call tools directly.
+- ~~Add a deterministic tool executor seam.~~
+- ~~Add model-observable tool results and tool errors for current facade.~~
+- ~~Add tests where fake model responses call tools directly.~~
 - Ensure model cannot write raw storage directly.
 - Ensure tools write only through typed stores backed by the SQLite database layer.
 - Add safety checks inside tools, not only in prompts.
@@ -260,7 +264,7 @@ Core runtime objects:
 ## 4. No parser-based user interaction
 
 - ~~A basic `parse_health_log(text)` exists from the bootstrap phase.~~
-- Remove parser usage from Telegram/user-facing flows.
+- ~~Remove parser usage from Telegram/user-facing flows.~~
 - Do not add regex/rule parsing for natural-language health input.
 - Do not make `pulsekeeper parse` or `pulsekeeper log` the primary UX.
 - Keep any remaining parser code only as temporary dev scaffolding until the agent tool loop replaces it.
@@ -291,22 +295,23 @@ Core runtime objects:
 - ~~Local Telegram text adapter exists.~~
 - ~~Telegram update transport exists.~~
 - ~~Polling client seam exists.~~
-- Add real HTTP client, likely `httpx`.
-- Add `TELEGRAM_BOT_TOKEN` config.
+- ~~Add Bot API HTTP client seam for `getUpdates` / `sendMessage`.~~
+- ~~Add `TELEGRAM_BOT_TOKEN` config / `.env.example` entry.~~
 - Add long polling loop:
   - offset persistence;
   - graceful shutdown;
   - retry/backoff;
   - safe logs without token leaks.
 - Add Telegram-safe formatting.
-- Add command support:
+- ~~Add command support:
   - `/help`
+  - `/summary`
   - `/today`
   - `/week`
   - `/undo`
   - `/profile`
-  - `/reminders`
-- Route normal text through `AgentRuntime`.
+  - `/reminders` placeholder~~
+- ~~Route normal text through agent runtime path.~~
 - Map slash commands like `/summary`, `/undo`, `/reminders`, and `/profile` into the same typed tools used by natural language.
 - Only trivial gateway/system commands such as `/start` and `/help` may bypass the model, and even then they should not parse health input.
 
@@ -314,17 +319,15 @@ Core runtime objects:
 
 ## 7. BYOK LLM providers
 
-- Add provider interface:
-  - `LLMProvider`
-  - `complete_with_tools(...)`
-- Add fake provider for tests.
-- Add OpenAI-compatible provider first.
-- Add config for:
+- ~~Add provider/agent facade using pydantic-ai.~~
+- ~~Add fake provider for tests.~~
+- ~~Add OpenAI-compatible provider construction first.~~
+- ~~Add config for:
   - provider;
   - model;
   - API key env var;
   - base URL;
-  - timeout.
+  - timeout.~~
 - Later add:
   - Anthropic;
   - OpenRouter;
@@ -338,8 +341,8 @@ Core runtime objects:
 
 Memory is a core Hermes-like capability, not just settings.
 
-- Add per-user profile storage.
-- Store stable facts separately from health logs.
+- ~~Add per-user profile storage.~~
+- ~~Store stable facts separately from health logs.~~
 - Split memory into:
   - profile memory: stable facts about the user;
   - health log: raw events and measurements;
@@ -353,12 +356,12 @@ Memory is a core Hermes-like capability, not just settings.
   - dietary constraints;
   - relevant context user explicitly gives.
 - Add profile/memory tools:
-  - `set_user_profile_fact`;
+  - ~~`set_user_profile_fact` foundation in pydantic-ai facade; registry metadata still pending~~;
   - `get_user_profile`;
   - `search_health_memory`;
   - `write_summary_memory`.
 - Add Telegram commands that map into tools:
-  - `/profile`;
+  - ~~/profile~~;
   - `/set timezone ...`;
   - `/set goal ...`.
 - Keep memory editable and exportable.
@@ -389,7 +392,7 @@ Memory is a core Hermes-like capability, not just settings.
 
 ## 10. Conversation state
 
-- Add short-lived per-user dialog state.
+- ~~Add short-lived per-user dialog state store.~~
 - Support clarification flows:
   - ambiguous food entry;
   - missing date/time;
@@ -397,7 +400,7 @@ Memory is a core Hermes-like capability, not just settings.
 - Support correction flows:
   - “не 84.2, а 83.9”;
   - “удали последнюю запись”;
-  - `/undo`.
+  - ~~/undo~~.
 - Keep state small and inspectable.
 
 ---

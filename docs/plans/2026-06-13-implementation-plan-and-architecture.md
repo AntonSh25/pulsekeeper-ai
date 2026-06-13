@@ -1,7 +1,7 @@
 # PulseKeeper: архитектура и пошаговый план реализации
 
 Дата: 2026-06-13  
-Статус: рабочий implementation roadmap  
+Статус: рабочий implementation roadmap, обновлён после инкремента `be76a35`
 Репозиторий: `AntonSh25/pulsekeeper-ai`  
 Ветка: `feat/mvp-summaries`
 
@@ -453,7 +453,15 @@ FTS5 по summary text.
 - ~~Telegram polling client seam with fixture-based tests.~~
 - ~~Initial `AgentRuntime`, `MessageContext`, `ToolExecutor`, and typed tool call seam.~~
 - ~~Telegram natural-language input no longer uses parser when no model runtime is configured.~~
-- ~~Quality gate: `uv run pytest -q` passes — 34 tests.~~
+- ~~SQLite `Database` class with explicit idempotent migrations, WAL/FK setup and transaction helper.~~
+- ~~Initial SQLite schema under `src/pulsekeeper/migrations/001_initial_schema.sql`.~~
+- ~~`HealthEntryStore` with append/list/get_last/update/soft_delete/search via FTS5.~~
+- ~~Memory stores: `ProfileStore`, `PreferenceStore`, `ConversationStateStore`, `SummaryMemoryStore`.~~
+- ~~Pydantic AI facade for `log_health_entry`, summary, clarifying questions and model-tool loop tests.~~
+- ~~LLM access config and OpenAI-compatible/pydantic-ai provider construction seam.~~
+- ~~Aiogram Telegram gateway skeleton with owner allowlist/private-chat guard.~~
+- ~~Telegram slash commands: `/start`, `/help`, `/summary`, `/today`, `/week`, `/undo`, `/profile`, `/reminders` placeholder.~~
+- ~~Quality gate: `uv run pytest -q` passes — 91 tests.~~
 - ~~Quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -470,17 +478,17 @@ FTS5 по summary text.
 2. ~~Создать `MessageContext`.~~
 3. ~~Создать `ToolExecutor` seam.~~
 4. Добавить `ToolRegistry`.
-5. Добавить Pydantic schemas для всех initial tools.
+5. ~~Добавить Pydantic schemas для currently wired tools: `log_health_entry`, `get_health_summary`, `ask_clarifying_question`.~~
 6. Добавить metadata для tools:
    - name;
    - description;
    - input schema;
    - output shape;
    - safety notes.
-7. Добавить fake model runtime для тестов.
-8. Сделать тесты, где fake model возвращает tool call.
+7. ~~Добавить fake/test model runtime для тестов.~~
+8. ~~Сделать тесты, где fake model возвращает tool call.~~
 9. Убедиться, что model не пишет в storage напрямую.
-10. Все normal Telegram text messages route through `AgentRuntime`.
+10. ~~Все normal Telegram text messages route through agent runtime path in aiogram gateway.~~
 
 ### Acceptance criteria
 
@@ -498,28 +506,28 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Создать `src/pulsekeeper/storage/sqlite.py` или `src/pulsekeeper/db.py`.
-2. Создать `Database` class:
+1. ~~Создать `src/pulsekeeper/storage/sqlite.py`.~~
+2. ~~Создать `Database` class:
    - opens connection;
    - applies migrations;
-   - transaction helper.
-3. Создать migrations folder.
-4. Реализовать initial schema.
+   - transaction helper.~~
+3. ~~Создать migrations folder.~~
+4. ~~Реализовать initial schema.~~
 5. Реализовать stores:
    - `UserStore`;
-   - `HealthEntryStore`;
-   - `ProfileStore`;
-   - `PreferenceStore`;
-   - `ConversationStateStore`;
-   - `SummaryMemoryStore`;
+   - ~~`HealthEntryStore`;~~
+   - ~~`ProfileStore`;~~
+   - ~~`PreferenceStore`;~~
+   - ~~`ConversationStateStore`;~~
+   - ~~`SummaryMemoryStore`;~~
    - `ReminderStore`;
    - `GatewayStateStore`;
    - `ImportStore`.
-6. Добавить FTS5 для `health_entries` и `summary_memory`.
-7. Написать tests with temp SQLite DB.
-8. Добавить migration tests.
-9. Добавить transaction tests.
-10. Перевести agent tools на store layer.
+6. ~~Добавить FTS5 для `health_entries` и `summary_memory`.~~
+7. ~~Написать tests with temp SQLite DB.~~
+8. ~~Добавить migration tests.~~
+9. ~~Добавить transaction tests.~~
+10. Частично перевести runtime на store layer: aiogram gateway uses SQLite `HealthEntryStore`; legacy `agent_runtime.py` still writes JSONL and needs migration.
 11. Оставить JSONL только для legacy/export/dev smoke checks.
 
 ### Acceptance criteria
@@ -539,16 +547,16 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Profile facts storage.
-2. Preferences storage.
-3. Conversation state with expiry.
-4. Summary memory storage.
-5. `set_user_profile_fact` tool.
+1. ~~Profile facts storage.~~
+2. ~~Preferences storage.~~
+3. ~~Conversation state with expiry.~~
+4. ~~Summary memory storage.~~
+5. Частично: `set_user_profile_fact` exists in pydantic-ai facade; still needs first-class registry/tool metadata.
 6. `search_health_memory` tool.
 7. `write_summary_memory` tool.
-8. `get_user_profile` helper/tool.
+8. Частично: `/profile` reads saved facts; still needs reusable `get_user_profile` helper/tool.
 9. Telegram commands mapping:
-   - `/profile`;
+   - ~~/profile~~;
    - `/set timezone ...`;
    - `/set goal ...`.
 
@@ -567,18 +575,19 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Define `LLMProvider` / `ModelRuntime` interface.
-2. Keep fake provider as test default.
-3. Add OpenAI-compatible provider.
-4. Add config fields:
+1. ~~Define pydantic-ai `PulseKeeperAgent` / model construction seam.~~
+2. ~~Keep fake provider as test default.~~
+3. ~~Add OpenAI-compatible provider construction seam.~~
+4. ~~Add config fields:
    - provider;
    - model;
    - base_url;
    - api_key_env;
-   - timeout.
-5. Add `.env` loading.
-6. Add secret redaction.
-7. Add provider tests with mocked HTTP, not live API.
+   - timeout.~~
+5. ~~Add `.env` loading / env based config.~~
+6. ~~Add secret redaction in config representation/errors where present.~~
+7. ~~Add provider construction tests without live API.~~
+8. Remaining: direct mocked HTTP/tool-call tests for real provider response shape.
 
 ### Acceptance criteria
 
@@ -595,19 +604,20 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Route normal Telegram text through `AgentRuntime`.
-2. Map slash commands to typed tools:
-   - `/summary`;
-   - `/today`;
-   - `/week`;
-   - `/undo`;
-   - `/profile`;
-   - `/reminders`.
-3. Allow only trivial system commands to bypass model:
+1. ~~Route normal Telegram text through pydantic-ai agent runtime path in `TelegramGateway`.~~
+2. Map slash commands to deterministic/store-backed paths:
+   - ~~/summary~~;
+   - ~~/today~~;
+   - ~~/week~~;
+   - ~~/undo~~;
+   - ~~/profile~~;
+   - ~~/reminders placeholder~~.
+3. ~~Allow only trivial system commands to bypass model:
    - `/start`;
-   - `/help`.
-4. Add Telegram-safe formatting.
-5. Add end-to-end tests with fake Telegram update + fake model.
+   - `/help`.~~
+4. ~~Add minimal Telegram-safe formatting.~~
+5. ~~Add aiogram gateway tests with fake gateway/update + fake agent.~~
+6. Remaining: make slash commands call first-class typed tools once `ToolRegistry` exists, instead of gateway-private helper methods.
 
 ### Acceptance criteria
 
@@ -650,9 +660,9 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Add real HTTP client, likely `httpx`.
-2. Add `TELEGRAM_BOT_TOKEN` config.
-3. Implement `telegram-run` long polling:
+1. ~~Add real HTTP client seam for `getUpdates` / `sendMessage` via `urllib`-based `TelegramBotApiClient`.~~
+2. ~~Add `TELEGRAM_BOT_TOKEN` config / `.env.example` entry for polling seam.~~
+3. Implement `telegram-run` long polling loop:
    - load offset;
    - get updates;
    - handle messages;
@@ -678,9 +688,9 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Implement `update_last_entry`.
-2. Implement `delete_last_entry` / soft delete.
-3. Implement `/undo`.
+1. ~~Implement `HealthEntryStore.update` for last-entry correction foundation.~~
+2. ~~Implement `HealthEntryStore.soft_delete` / soft delete.~~
+3. ~~Implement `/undo` in aiogram gateway.~~
 4. Add natural-language correction flows:
    - “не 84.2, а 83.9”;
    - “удали последнюю запись”;
@@ -701,8 +711,8 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Build deterministic summary data builder.
-2. Add no-LLM fallback.
+1. Частично: bootstrap deterministic daily/weekly summaries and gateway counts exist; richer structured summary builder still needed.
+2. ~~Add no-LLM fallback for `/today`, `/week`, `/summary`.~~
 3. Add optional LLM prose layer.
 4. Summary blocks:
    - weight;
@@ -888,48 +898,49 @@ Do not claim precise calories from images.
 ### Increment 1 — ToolRegistry + schemas
 
 - Add `ToolRegistry`.
-- Add Pydantic input schemas.
-- Add fake model tests.
+- Finish metadata for all tools.
+- Migrate existing pydantic schemas into registry entries.
 - Verify tool args validation.
 
-### Increment 2 — SQLite DB skeleton
+### Increment 2 — Agent tools use SQLite stores
 
-- Add `Database`.
-- Add migrations.
-- Add `HealthEntryStore`.
-- Add tests with temp DB.
-
-### Increment 3 — Agent tools use SQLite stores
-
-- Replace direct JSONL writes in tools.
+- Replace legacy `agent_runtime.py` JSONL writes with SQLite-backed stores or retire it behind pydantic-ai facade.
 - Keep JSONL only as legacy/export path.
-- Add transaction tests.
+- Add transaction tests around multi-tool turns.
 
-### Increment 4 — Memory stores
+### Increment 3 — Complete missing stores
 
-- Profile facts.
-- Preferences.
-- Conversation state.
-- Summary memory.
+- UserStore.
+- GatewayStateStore / Telegram offsets.
+- ReminderStore.
+- ImportStore.
 
-### Increment 5 — BYOK OpenAI-compatible provider
-
-- Config.
-- Fake provider stays test default.
-- Mocked HTTP tests.
-
-### Increment 6 — Telegram runtime path
-
-- Normal messages through `AgentRuntime`.
-- Slash commands map to tools.
-- Telegram formatting.
-
-### Increment 7 — Live polling
+### Increment 4 — Live Telegram polling loop
 
 - `telegram-run`.
-- `httpx` client.
 - offset persistence.
-- safe retries.
+- retry/backoff.
+- graceful shutdown.
+- safe token-redacted logs.
+
+### Increment 5 — Config and doctor
+
+- `pulsekeeper config`.
+- `pulsekeeper doctor`.
+- actionable redacted diagnostics.
+
+### Increment 6 — Rich summaries + memory
+
+- deterministic summary data builder.
+- optional LLM prose layer.
+- write durable summary observations.
+
+### Increment 7 — Reminders MVP
+
+- ReminderStore.
+- scheduler loop.
+- list/cancel commands.
+- timezone-aware delivery.
 
 ---
 
