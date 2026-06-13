@@ -1,8 +1,19 @@
+from pulsekeeper.agent_runtime import MessageContext, ToolCall
 from pulsekeeper.storage import JsonlHealthLog
 from pulsekeeper.telegram_transport import TelegramOutboundMessage, handle_telegram_update
 
 
-def test_telegram_update_routes_message_text_by_sender_id(tmp_path):
+class FakeModelRuntime:
+    def complete_with_tools(self, message: str, context: MessageContext) -> list[ToolCall]:
+        return [
+            ToolCall(
+                name="log_health_entry",
+                arguments={"kind": "weight", "note": message, "value": 84.2, "unit": "kg"},
+            )
+        ]
+
+
+def test_telegram_update_routes_message_text_by_sender_id_through_agent(tmp_path):
     storage_dir = tmp_path / "pulsekeeper"
     update = {
         "update_id": 1000,
@@ -14,11 +25,31 @@ def test_telegram_update_routes_message_text_by_sender_id(tmp_path):
         },
     }
 
-    outbound = handle_telegram_update(update, storage_dir=storage_dir)
+    outbound = handle_telegram_update(
+        update,
+        storage_dir=storage_dir,
+        model_runtime=FakeModelRuntime(),
+    )
 
     assert outbound == TelegramOutboundMessage(chat_id=555, text="Записал: weight — вес 84.2 кг")
     entries = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl").read_all()
     assert entries[0].kind == "weight"
+
+
+def test_telegram_update_without_model_does_not_parse_user_text(tmp_path):
+    update = {
+        "message": {
+            "chat": {"id": 555, "type": "private"},
+            "from": {"id": 111, "is_bot": False},
+            "text": "вес 84.2 кг",
+        }
+    }
+
+    outbound = handle_telegram_update(update, storage_dir=tmp_path)
+
+    assert outbound is not None
+    assert "Нужен BYOK LLM provider" in outbound.text
+    assert JsonlHealthLog(tmp_path / "users" / "111" / "health.jsonl").read_all() == []
 
 
 def test_telegram_update_returns_none_for_non_text_message(tmp_path):

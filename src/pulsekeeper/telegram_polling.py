@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol
 
+from pulsekeeper.agent_runtime import ModelRuntime
 from pulsekeeper.telegram_transport import handle_telegram_update
 
 
@@ -37,11 +38,16 @@ def poll_once(
     storage_dir: Path,
     offset: int | None = None,
     timeout: int = 30,
+    model_runtime: ModelRuntime | None = None,
 ) -> int | None:
     updates = client.get_updates(offset=offset, timeout=timeout)
     next_offset = offset
     for update in updates:
-        outbound = handle_telegram_update(update, storage_dir=storage_dir)
+        outbound = handle_telegram_update(
+            update,
+            storage_dir=storage_dir,
+            model_runtime=model_runtime,
+        )
         if outbound is not None:
             client.send_message(chat_id=outbound.chat_id, text=outbound.text)
         update_id = update.get("update_id")

@@ -1,3 +1,4 @@
+from pulsekeeper.agent_runtime import MessageContext, ToolCall
 from pulsekeeper.telegram_polling import TelegramBotApiClient, poll_once
 
 
@@ -13,6 +14,16 @@ class FakeHttpClient:
     def post_json(self, url, payload):
         self.calls.append((url, payload))
         return {"ok": True, "result": True}
+
+
+class FakeModelRuntime:
+    def complete_with_tools(self, message: str, context: MessageContext) -> list[ToolCall]:
+        return [
+            ToolCall(
+                name="log_health_entry",
+                arguments={"kind": "weight", "note": message, "value": 84.2, "unit": "kg"},
+            )
+        ]
 
 
 def test_bot_api_client_get_updates_uses_token_and_offset():
@@ -64,13 +75,43 @@ def test_poll_once_handles_updates_sends_replies_and_returns_next_offset(tmp_pat
     )
     client = TelegramBotApiClient(token="secret-token", http_client=http)
 
-    next_offset = poll_once(client, storage_dir=tmp_path, offset=41)
+    next_offset = poll_once(
+        client,
+        storage_dir=tmp_path,
+        offset=41,
+        model_runtime=FakeModelRuntime(),
+    )
 
     assert next_offset == 43
     assert http.calls[-1] == (
         "https://api.telegram.org/botsecret-token/sendMessage",
         {"chat_id": 555, "text": "Записал: weight — вес 84.2 кг"},
     )
+
+
+def test_poll_once_without_model_does_not_parse_user_text(tmp_path):
+    http = FakeHttpClient()
+    http.responses.append(
+        {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 42,
+                    "message": {
+                        "chat": {"id": 555},
+                        "from": {"id": 111},
+                        "text": "вес 84.2 кг",
+                    },
+                }
+            ],
+        }
+    )
+    client = TelegramBotApiClient(token="secret-token", http_client=http)
+
+    next_offset = poll_once(client, storage_dir=tmp_path, offset=41)
+
+    assert next_offset == 43
+    assert "Нужен BYOK LLM provider" in http.calls[-1][1]["text"]
 
 
 def test_poll_once_returns_same_offset_when_no_updates(tmp_path):

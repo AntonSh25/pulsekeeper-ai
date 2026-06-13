@@ -61,7 +61,7 @@ def test_weekly_summary_uses_7_day_window_ending_on_requested_date(tmp_path):
     assert "out of range" not in result.stdout
 
 
-def test_telegram_handle_command_routes_message_through_adapter(tmp_path):
+def test_telegram_handle_command_requires_agent_model_for_natural_language(tmp_path):
     log_path = tmp_path / "health.jsonl"
 
     result = runner.invoke(
@@ -70,11 +70,11 @@ def test_telegram_handle_command_routes_message_through_adapter(tmp_path):
     )
 
     assert result.exit_code == 0
-    assert "Записал: weight" in result.stdout
-    assert JsonlHealthLog(log_path).read_all()[0].kind == "weight"
+    assert "Нужен BYOK LLM provider" in result.stdout
+    assert JsonlHealthLog(log_path).read_all() == []
 
 
-def test_telegram_handle_command_can_route_by_user_id(tmp_path):
+def test_telegram_handle_command_does_not_parse_by_user_id_without_agent_model(tmp_path):
     storage_dir = tmp_path / "pulsekeeper"
 
     first = runner.invoke(
@@ -102,13 +102,15 @@ def test_telegram_handle_command_can_route_by_user_id(tmp_path):
 
     assert first.exit_code == 0
     assert second.exit_code == 0
+    assert "Нужен BYOK LLM provider" in first.stdout
+    assert "Нужен BYOK LLM provider" in second.stdout
     first_log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
     second_log = JsonlHealthLog(storage_dir / "users" / "222" / "health.jsonl")
-    assert first_log.read_all()[0].kind == "weight"
-    assert second_log.read_all()[0].kind == "workout"
+    assert first_log.read_all() == []
+    assert second_log.read_all() == []
 
 
-def test_telegram_update_command_handles_telegram_update_json(tmp_path):
+def test_telegram_update_command_requires_agent_model_for_natural_language(tmp_path):
     storage_dir = tmp_path / "pulsekeeper"
     update_json = (
         '{"message":{"chat":{"id":555},"from":{"id":111},"text":"вес 84.2 кг"}}'
@@ -120,12 +122,12 @@ def test_telegram_update_command_handles_telegram_update_json(tmp_path):
     )
 
     assert result.exit_code == 0
-    assert "Записал: weight" in result.stdout
+    assert "Нужен BYOK LLM provider" in result.stdout
     log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
-    assert log.read_all()[0].kind == "weight"
+    assert log.read_all() == []
 
 
-def test_telegram_poll_once_command_uses_fixture_without_token(tmp_path):
+def test_telegram_poll_once_command_uses_fixture_without_token_or_parser(tmp_path):
     storage_dir = tmp_path / "pulsekeeper"
     fixture_path = tmp_path / "updates.json"
     fixture_path.write_text(
@@ -150,5 +152,6 @@ def test_telegram_poll_once_command_uses_fixture_without_token(tmp_path):
     assert result.exit_code == 0
     assert "next_offset=43" in result.stdout
     assert "sendMessage chat_id=555" in result.stdout
+    assert "Нужен BYOK LLM provider" in result.stdout
     log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
-    assert log.read_all()[0].kind == "weight"
+    assert log.read_all() == []

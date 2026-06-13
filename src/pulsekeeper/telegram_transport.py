@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from pulsekeeper.agent_runtime import ModelRuntime
 from pulsekeeper.telegram_adapter import handle_telegram_text
 
 
@@ -17,6 +18,7 @@ def handle_telegram_update(
     update: dict[str, Any],
     *,
     storage_dir: Path,
+    model_runtime: ModelRuntime | None = None,
 ) -> TelegramOutboundMessage | None:
     message = update.get("message")
     if not isinstance(message, dict):
@@ -37,5 +39,6 @@ def handle_telegram_update(
         text,
         storage_dir=storage_dir,
         telegram_user_id=str(sender_id),
+        model_runtime=model_runtime,
     )
     return TelegramOutboundMessage(chat_id=chat_id, text=response_text)

@@ -218,7 +218,10 @@ def test_build_agent_subscription_passes_placeholder_not_environment_api_key(mon
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-rea...cret")
     monkeypatch.setattr("pulsekeeper.llm.agent.OpenAIProvider", FakeProvider)
-    monkeypatch.setattr("pulsekeeper.llm.agent.OpenAIModel", lambda model, provider: "fake-model")
+    monkeypatch.setattr(
+        "pulsekeeper.llm.agent.OpenAIModel",
+        lambda model, provider: "fake-model",
+    )
     monkeypatch.setattr("pulsekeeper.llm.agent.Agent", FakeAgent)
 
     built = build_agent(
@@ -250,7 +253,10 @@ def test_build_agent_passes_config_timeout_to_openai_http_client(monkeypatch):
             pass
 
     monkeypatch.setattr("pulsekeeper.llm.agent.OpenAIProvider", FakeProvider)
-    monkeypatch.setattr("pulsekeeper.llm.agent.OpenAIModel", lambda model, provider: "fake-model")
+    monkeypatch.setattr(
+        "pulsekeeper.llm.agent.OpenAIModel",
+        lambda model, provider: "fake-model",
+    )
     monkeypatch.setattr("pulsekeeper.llm.agent.Agent", FakeAgent)
 
     build_agent(

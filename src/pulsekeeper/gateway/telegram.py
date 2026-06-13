@@ -1,0 +1,258 @@
+from __future__ import annotations
+
+from collections import Counter
+from dataclasses import dataclass
+from datetime import UTC, datetime, time, timedelta
+from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from aiogram import Bot, Dispatcher, Router
+from aiogram.filters import CommandStart
+from aiogram.types import Message
+
+from pulsekeeper.llm.agent import AgentDeps, MessageContext, PulseKeeperAgent, run_turn
+from pulsekeeper.storage.health_entries import HealthEntryStore
+from pulsekeeper.storage.sqlite import Database
+
+START_TEXT = (
+    "PulseKeeper is ready. Send normal text to log or ask about your health journal.\n"
+    "Use /today or /week for deterministic entry summaries."
+)
+HELP_TEXT = (
+    "PulseKeeper commands:\n"
+    "/start - show the welcome message\n"
+    "/help - show this help\n"
+    "/today - summarize today's health entries\n"
+    "/week - summarize this week's health entries"
+)
+DENIED_TEXT = "You are not authorized to use this PulseKeeper bot."
+PRIVATE_CHAT_ONLY_TEXT = "PulseKeeper only replies with health data in a private chat."
+UNKNOWN_COMMAND_TEXT = "Unknown command. Use /help to see supported commands."
+
+
+@dataclass(frozen=True)
+class TelegramGatewayConfig:
+    bot_token: str
+    owner_telegram_user_id: int
+    default_timezone: str = "UTC"
+
+    def __repr__(self) -> str:
+        return (
+            "TelegramGatewayConfig("
+            "bot_token='***', "
+            f"owner_telegram_user_id={self.owner_telegram_user_id!r}, "
+            f"default_timezone={self.default_timezone!r}"
+            ")"
+        )
+
+
+class TelegramGateway:
+    def __init__(
+        self,
+        *,
+        config: TelegramGatewayConfig,
+        db: Database,
+        health_entries: HealthEntryStore,
+        agent: PulseKeeperAgent | Any,
+    ) -> None:
+        self.config = config
+        self.db = db
+        self.health_entries = health_entries
+        self.agent = agent
+
+    async def resolve_user(self, *, telegram_user_id: int, chat_id: int) -> int:
+        if telegram_user_id != self.config.owner_telegram_user_id:
+            raise PermissionError("telegram user is not in the owner allowlist")
+
+        external_user_id = str(telegram_user_id)
+        async with self.db.transaction() as conn:
+            async with conn.execute(
+                """
+                SELECT user_id
+                FROM gateway_accounts
+                WHERE gateway = 'telegram' AND external_user_id = ?
+                """,
+                (external_user_id,),
+            ) as existing_cursor:
+                existing = await existing_cursor.fetchone()
+            if existing is not None:
+                await conn.execute(
+                    """
+                    UPDATE gateway_accounts
+                    SET external_chat_id = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE gateway = 'telegram' AND external_user_id = ?
+                    """,
+                    (str(chat_id), external_user_id),
+                )
+                return int(existing["user_id"])
+
+            async with conn.execute("INSERT INTO users DEFAULT VALUES") as cursor:
+                user_id = cursor.lastrowid
+            if user_id is None:  # pragma: no cover - sqlite always returns a row id here
+                raise RuntimeError("created user row did not return an id")
+            await conn.execute(
+                """
+                INSERT INTO gateway_accounts (
+                    user_id, gateway, external_user_id, external_chat_id
+                )
+                VALUES (?, 'telegram', ?, ?)
+                """,
+                (user_id, external_user_id, str(chat_id)),
+            )
+        return int(user_id)
+
+    async def handle_text(
+        self,
+        text: str,
+        *,
+        telegram_user_id: int,
+        chat_id: int,
+        chat_type: str = "private",
+        message_id: int | None = None,
+        now: datetime | None = None,
+    ) -> str:
+        if chat_type != "private":
+            return PRIVATE_CHAT_ONLY_TEXT
+
+        try:
+            user_id = await self.resolve_user(telegram_user_id=telegram_user_id, chat_id=chat_id)
+        except PermissionError:
+            return DENIED_TEXT
+
+        received_at = now or datetime.now(UTC)
+        normalized_text = text.strip()
+        command = _command_name(normalized_text)
+        if command is not None:
+            if command in {"start", "help"}:
+                return START_TEXT if command == "start" else HELP_TEXT
+            if command == "today":
+                return await self._summary_text(user_id=user_id, period="today", now=received_at)
+            if command == "week":
+                return await self._summary_text(user_id=user_id, period="week", now=received_at)
+            return UNKNOWN_COMMAND_TEXT
+
+        context = MessageContext(
+            user_id=user_id,
+            chat_id=chat_id,
+            text=text,
+            attachments=[],
+            now=received_at,
+            timezone=self.config.default_timezone,
+            message_id=message_id,
+            source="telegram",
+        )
+        deps = AgentDeps(
+            user_id=user_id,
+            health_entries=self.health_entries,
+            now=received_at,
+            timezone=self.config.default_timezone,
+            source="telegram",
+        )
+        reply = await run_turn(self.agent, context, deps)
+        return _telegram_safe(reply.text)
+
+    async def _summary_text(self, *, user_id: int, period: str, now: datetime) -> str:
+        start, end = _summary_bounds(period, now=now, timezone=self.config.default_timezone)
+        entries = await self.health_entries.list(user_id, start=start, end=end)
+        counts = Counter(entry.kind for entry in entries)
+        lines = [
+            f"{period.capitalize()} summary",
+            f"Found {len(entries)} health entries.",
+            f"Range: {start.date().isoformat()} to {end.date().isoformat()}",
+        ]
+        if counts:
+            lines.append("Counts by kind:")
+            lines.extend(f"- {kind}: {count}" for kind, count in sorted(counts.items()))
+        else:
+            lines.append("No entries found for this period.")
+        return "\n".join(lines)
+
+
+def build_dispatcher(gateway: TelegramGateway) -> Dispatcher:
+    router = Router()
+
+    @router.message(CommandStart())
+    async def handle_start(message: Message) -> None:
+        await _answer_message(gateway, message)
+
+    @router.message()
+    async def handle_message(message: Message) -> None:
+        await _answer_message(gateway, message)
+
+    dispatcher = Dispatcher()
+    dispatcher.include_router(router)
+    return dispatcher
+
+
+async def _answer_message(gateway: TelegramGateway, message: Message) -> None:
+    if message.from_user is None or message.text is None:
+        return
+    reply = await gateway.handle_text(
+        message.text,
+        telegram_user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        chat_type=str(message.chat.type),
+        message_id=message.message_id,
+    )
+    await message.answer(reply)
+
+
+async def run_polling(gateway: TelegramGateway) -> None:
+    bot = Bot(token=gateway.config.bot_token)
+    dispatcher = build_dispatcher(gateway)
+    await dispatcher.start_polling(bot)
+
+
+def _command_name(text: str) -> str | None:
+    if not text.startswith("/"):
+        return None
+    raw = text.split(maxsplit=1)[0][1:]
+    command = raw.split("@", maxsplit=1)[0].lower()
+    return command or None
+
+
+def _summary_bounds(
+    period: str,
+    *,
+    now: datetime,
+    timezone: str = "UTC",
+) -> tuple[datetime, datetime]:
+    if now.tzinfo is None or now.utcoffset() is None:
+        now = now.replace(tzinfo=UTC)
+
+    try:
+        local_tz = ZoneInfo(timezone)
+    except ZoneInfoNotFoundError:
+        local_tz = UTC
+    local_now = now.astimezone(local_tz)
+
+    if period == "today":
+        start_date = local_now.date()
+        end_date = start_date + timedelta(days=1)
+    elif period == "week":
+        start_date = local_now.date() - timedelta(days=local_now.weekday())
+        end_date = start_date + timedelta(days=7)
+    else:  # pragma: no cover - callers constrain periods
+        raise ValueError(f"unsupported summary period: {period}")
+    return (
+        datetime.combine(start_date, time.min, tzinfo=local_tz).astimezone(UTC),
+        datetime.combine(end_date, time.min, tzinfo=local_tz).astimezone(UTC),
+    )
+
+
+def _telegram_safe(text: str) -> str:
+    # We do not set a parse_mode in the aiogram boundary, so plain text is Telegram-safe.
+    return text
+
+
+__all__ = [
+    "DENIED_TEXT",
+    "HELP_TEXT",
+    "START_TEXT",
+    "TelegramGateway",
+    "TelegramGatewayConfig",
+    "PRIVATE_CHAT_ONLY_TEXT",
+    "UNKNOWN_COMMAND_TEXT",
+    "build_dispatcher",
+    "run_polling",
+]
