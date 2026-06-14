@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pulsekeeper.llm.agent import AgentDeps, MessageContext, PulseKeeperAgent, run_turn
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.memory import ProfileStore
+from pulsekeeper.storage.reminders import ReminderStore
 from pulsekeeper.storage.sqlite import Database
 from pulsekeeper.storage.users import UserStore
 
@@ -31,7 +32,9 @@ HELP_TEXT = (
     "/week - summarize this week's health entries\n"
     "/undo - delete the latest health entry\n"
     "/profile - show known profile facts\n"
-    "/reminders - show reminder status"
+    "/remind <type> daily HH:MM - schedule a daily reminder\n"
+    "/reminders - list active reminders\n"
+    "/reminder off - turn off the next active reminder"
 )
 DENIED_TEXT = "You are not authorized to use this PulseKeeper bot."
 PRIVATE_CHAT_ONLY_TEXT = "PulseKeeper only replies with health data in a private chat."
@@ -70,6 +73,7 @@ class TelegramGateway:
         self.agent = agent
         self.users = users or UserStore(db)
         self.profile = ProfileStore(db)
+        self.reminders = ReminderStore(db)
 
     async def resolve_user(self, *, telegram_user_id: int, chat_id: int) -> int:
         if telegram_user_id != self.config.owner_telegram_user_id:
@@ -117,8 +121,16 @@ class TelegramGateway:
                 return await self._profile_text(user_id=user_id)
             if command == "set":
                 return await self._set_text(user_id=user_id, text=normalized_text)
+            if command == "remind":
+                return await self._remind_text(
+                    user_id=user_id,
+                    text=normalized_text,
+                    now=received_at,
+                )
+            if command == "reminder":
+                return await self._reminder_text(user_id=user_id, text=normalized_text)
             if command == "reminders":
-                return "Reminders are not enabled yet. Reminder scheduling is planned for Phase 9."
+                return await self._reminders_text(user_id=user_id)
             return UNKNOWN_COMMAND_TEXT
 
         context = MessageContext(
@@ -203,6 +215,67 @@ class TelegramGateway:
         for key, value in facts.items():
             lines.append(f"- {key}: {_format_profile_value(value)}")
         return "\n".join(lines)
+
+    async def _remind_text(self, *, user_id: int, text: str, now: datetime) -> str:
+        parts = text.split()
+        if len(parts) != 4 or parts[2].lower() != "daily":
+            return "Usage: /remind <type> daily HH:MM."
+
+        reminder_type = parts[1].lower()
+        reminder_time = parts[3]
+        parsed_time = _parse_reminder_time(reminder_time)
+        if parsed_time is None:
+            return "Usage: /remind <type> daily HH:MM."
+
+        timezone = await self._user_timezone(user_id)
+        next_due_at = _next_daily_due_at(now=now, reminder_time=parsed_time, timezone=timezone)
+        await self.reminders.create(
+            user_id=user_id,
+            type=reminder_type,
+            schedule={"kind": "daily", "time": reminder_time},
+            timezone=timezone,
+            next_due_at=next_due_at,
+        )
+        return f"Scheduled daily {reminder_type} reminder at {reminder_time} {timezone}."
+
+    async def _reminders_text(self, *, user_id: int) -> str:
+        reminders = await self._active_reminders(user_id)
+        if not reminders:
+            return "Reminders\nNo active reminders."
+        lines = ["Reminders"]
+        for reminder in reminders:
+            schedule_kind = reminder.schedule.get("kind", "custom")
+            schedule_time = reminder.schedule.get("time", "unscheduled")
+            lines.append(
+                f"- #{reminder.id} {reminder.type} {schedule_kind} "
+                f"at {schedule_time} {reminder.timezone}"
+            )
+        return "\n".join(lines)
+
+    async def _reminder_text(self, *, user_id: int, text: str) -> str:
+        parts = text.split()
+        if len(parts) != 2 or parts[1].lower() != "off":
+            return "Usage: /reminder off."
+        reminders = await self._active_reminders(user_id)
+        if not reminders:
+            return "No active reminders to turn off."
+        reminder = reminders[0]
+        await self.reminders.disable(reminder.id)
+        return f"Turned off reminder #{reminder.id}."
+
+    async def _active_reminders(self, user_id: int):
+        return [reminder for reminder in await self.reminders.list(user_id) if reminder.enabled]
+
+    async def _user_timezone(self, user_id: int) -> str:
+        value = await self.profile.get_fact(user_id, "timezone")
+        if isinstance(value, str):
+            try:
+                ZoneInfo(value)
+            except ZoneInfoNotFoundError:
+                pass
+            else:
+                return value
+        return self.config.default_timezone
 
 
 def build_dispatcher(gateway: TelegramGateway) -> Any:
@@ -297,6 +370,31 @@ def _summary_bounds(
         datetime.combine(start_date, time.min, tzinfo=local_tz).astimezone(UTC),
         datetime.combine(end_date, time.min, tzinfo=local_tz).astimezone(UTC),
     )
+
+
+def _parse_reminder_time(value: str) -> time | None:
+    try:
+        hour_text, minute_text = value.split(":", maxsplit=1)
+        hour = int(hour_text)
+        minute = int(minute_text)
+        return time(hour=hour, minute=minute)
+    except (TypeError, ValueError):
+        return None
+
+
+def _next_daily_due_at(*, now: datetime, reminder_time: time, timezone: str) -> datetime:
+    if now.tzinfo is None or now.utcoffset() is None:
+        now = now.replace(tzinfo=UTC)
+    try:
+        local_tz = ZoneInfo(timezone)
+    except ZoneInfoNotFoundError:
+        local_tz = UTC
+    local_now = now.astimezone(local_tz)
+    due_date = local_now.date()
+    local_due = datetime.combine(due_date, reminder_time, tzinfo=local_tz)
+    if local_due <= local_now:
+        local_due += timedelta(days=1)
+    return local_due.astimezone(UTC)
 
 
 def _telegram_safe(text: str) -> str:

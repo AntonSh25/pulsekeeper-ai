@@ -743,18 +743,18 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Add reminder model/store.
+1. ~~Add reminder model/store.~~
 2. Add scheduler loop.
 3. Add Telegram reminder delivery.
 4. Add reminder tools:
    - `schedule_reminder`;
    - list reminders;
    - cancel reminder.
-5. Add commands:
+5. ~~Add commands:
    - `/remind weight daily 09:00`;
    - `/reminders`;
-   - `/reminder off`.
-6. Use timezone from profile.
+   - `/reminder off`.~~
+6. ~~Use timezone from profile for Telegram reminder commands.~~
 7. Avoid missed-reminder spam after downtime.
 
 ### Acceptance criteria

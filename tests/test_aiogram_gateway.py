@@ -153,6 +153,8 @@ def test_start_and_help_bypass_model(tmp_path, monkeypatch):
             assert "PulseKeeper" in start
             assert "/today" in help_text
             assert "/week" in help_text
+            assert "/remind" in help_text
+            assert "/reminder off" in help_text
             assert calls == []
         finally:
             await db.close()
@@ -641,10 +643,12 @@ def test_set_timezone_and_goal_commands_write_profile_facts(tmp_path, monkeypatc
     run(scenario())
 
 
-def test_reminders_command_is_explicitly_not_ready_without_model_call(tmp_path, monkeypatch):
+def test_reminder_commands_schedule_list_and_cancel_without_model_call(tmp_path, monkeypatch):
     async def scenario() -> None:
         from pulsekeeper.gateway import telegram
         from pulsekeeper.gateway.telegram import TelegramGateway, TelegramGatewayConfig
+        from pulsekeeper.storage.memory import ProfileStore
+        from pulsekeeper.storage.reminders import ReminderStore
 
         db = Database(tmp_path / "state.db")
         await db.initialize()
@@ -662,17 +666,49 @@ def test_reminders_command_is_explicitly_not_ready_without_model_call(tmp_path, 
                 health_entries=HealthEntryStore(db),
                 agent=object(),
             )
+            user_id = await gateway.resolve_user(telegram_user_id=111, chat_id=222)
+            await ProfileStore(db).set_fact(user_id, "timezone", "Europe/Moscow", source="test")
 
-            reply = await gateway.handle_text(
+            empty_reply = await gateway.handle_text(
                 "/reminders",
                 telegram_user_id=111,
                 chat_id=222,
                 message_id=10,
                 now=datetime(2026, 6, 13, 12, 0, tzinfo=UTC),
             )
+            schedule_reply = await gateway.handle_text(
+                "/remind weight daily 09:00",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=11,
+                now=datetime(2026, 6, 13, 12, 0, tzinfo=UTC),
+            )
+            list_reply = await gateway.handle_text(
+                "/reminders",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=12,
+                now=datetime(2026, 6, 13, 12, 0, tzinfo=UTC),
+            )
+            off_reply = await gateway.handle_text(
+                "/reminder off",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=13,
+                now=datetime(2026, 6, 13, 12, 0, tzinfo=UTC),
+            )
 
-            assert "Reminders" in reply
-            assert "not enabled" in reply
+            reminders = await ReminderStore(db).list(user_id)
+            assert empty_reply == "Reminders\nNo active reminders."
+            assert schedule_reply == "Scheduled daily weight reminder at 09:00 Europe/Moscow."
+            assert list_reply == "Reminders\n- #1 weight daily at 09:00 Europe/Moscow"
+            assert off_reply == "Turned off reminder #1."
+            assert len(reminders) == 1
+            assert reminders[0].enabled is False
+            assert reminders[0].type == "weight"
+            assert reminders[0].schedule == {"kind": "daily", "time": "09:00"}
+            assert reminders[0].timezone == "Europe/Moscow"
+            assert reminders[0].next_due_at == datetime(2026, 6, 14, 6, 0, tzinfo=UTC)
             assert calls == []
         finally:
             await db.close()
