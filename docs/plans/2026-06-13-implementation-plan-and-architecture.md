@@ -744,8 +744,8 @@ FTS5 по summary text.
 ### Tasks
 
 1. ~~Add reminder model/store.~~
-2. Add scheduler loop.
-3. Add Telegram reminder delivery.
+2. ~~Add scheduler loop.~~
+3. ~~Add Telegram reminder delivery.~~
 4. Add reminder tools:
    - `schedule_reminder`;
    - list reminders;
@@ -755,13 +755,13 @@ FTS5 по summary text.
    - `/reminders`;
    - `/reminder off`.~~
 6. ~~Use timezone from profile for Telegram reminder commands.~~
-7. Avoid missed-reminder spam after downtime.
+7. ~~Avoid missed-reminder spam after downtime.~~
 
 ### Acceptance criteria
 
-- reminders fire at expected local time;
-- downtime does not cause spam storm;
-- user can list/cancel reminders.
+- ~~reminders fire at expected local time;~~
+- ~~downtime does not cause spam storm;~~
+- ~~user can list/cancel reminders.~~
 
 ---
 

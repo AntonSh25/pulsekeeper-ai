@@ -16,6 +16,7 @@ import typer
 from pulsekeeper.config import ConfigError, load_config, redact_secret
 from pulsekeeper.domain import parse_health_log
 from pulsekeeper.llm.agent import LLMConfig
+from pulsekeeper.reminder_scheduler import TelegramReminderScheduler, run_scheduler_loop
 from pulsekeeper.storage import JsonlHealthLog
 from pulsekeeper.storage.sqlite import Database
 from pulsekeeper.storage.users import GatewayStateStore
@@ -321,6 +322,64 @@ async def _telegram_run_async(
             max_iterations=max_iterations,
             log=log,
             secrets=(token,),
+        )
+    finally:
+        await database.close()
+
+
+@app.command("reminders-run")
+def reminders_run(
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Path to config.toml."),
+    ] = DEFAULT_CONFIG_PATH,
+    interval_seconds: Annotated[float, typer.Option("--interval-seconds")] = 60.0,
+    max_iterations: Annotated[int | None, typer.Option("--max-iterations", hidden=True)] = None,
+) -> None:
+    """Run the Telegram reminder scheduler loop."""
+    try:
+        loaded = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(f"Config error: {exc}")
+        raise typer.Exit(1) from exc
+
+    if not loaded.telegram.bot_token:
+        typer.echo(f"FAIL Telegram token: Set {loaded.telegram.bot_token_env} in .env")
+        raise typer.Exit(1)
+
+    try:
+        asyncio.run(
+            _reminders_run_async(
+                loaded.storage.database_path,
+                token=loaded.telegram.bot_token,
+                interval_seconds=interval_seconds,
+                max_iterations=max_iterations,
+            )
+        )
+    except KeyboardInterrupt:
+        pass
+    typer.echo("Reminder scheduler stopped")
+
+
+async def _reminders_run_async(
+    database_path: Path,
+    *,
+    token: str,
+    interval_seconds: float,
+    max_iterations: int | None,
+) -> None:
+    database = Database(database_path)
+    try:
+        await database.initialize()
+        client = TelegramBotApiClient(token=token, http_client=UrlLibTelegramHttpClient())
+        scheduler = TelegramReminderScheduler(
+            db=database,
+            send_message=lambda chat_id, text: client.send_message(chat_id=chat_id, text=text),
+        )
+        await run_scheduler_loop(
+            process_due=scheduler.process_due,
+            max_iterations=max_iterations,
+            interval_seconds=interval_seconds,
         )
     finally:
         await database.close()

@@ -423,3 +423,32 @@ model = "gpt-test"
     assert result.exit_code == 0
     assert "Telegram polling stopped" in result.stdout
     assert "telegram-secret-token" not in result.stdout
+
+
+def test_reminders_run_initializes_scheduler_without_printing_token(tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[telegram]
+enabled = true
+bot_token = "123456:telegram-secret-token"
+
+[llm]
+auth_mode = "subscription"
+base_url = "https://llm.example.test/v1"
+model = "gpt-test"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["reminders-run", "--config", str(config_path), "--max-iterations", "0"],
+    )
+
+    assert result.exit_code == 0
+    assert "Reminder scheduler stopped" in result.stdout
+    assert "telegram-secret-token" not in result.stdout
