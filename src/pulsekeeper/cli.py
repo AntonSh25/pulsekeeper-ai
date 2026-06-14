@@ -123,6 +123,11 @@ def config_command(
     typer.echo(f"llm.base_url: {loaded.llm.base_url}")
     typer.echo(f"llm.model: {loaded.llm.model}")
     typer.echo(f"llm.api_key: {_configured_text(loaded.llm.api_key)}")
+    typer.echo(f"vision.enabled: {str(loaded.vision.enabled).lower()}")
+    if loaded.vision.enabled:
+        typer.echo(f"vision.base_url: {loaded.vision.base_url}")
+        typer.echo(f"vision.model: {loaded.vision.model}")
+        typer.echo(f"vision.api_key: {_configured_text(loaded.vision.api_key)}")
 
 
 @app.command("doctor")
@@ -173,6 +178,10 @@ def doctor_command(
         typer.echo("OK Telegram token: not required because telegram.enabled=false")
 
     typer.echo(f"OK provider configured: {loaded.llm.auth_mode} {loaded.llm.model}")
+    if loaded.vision.enabled:
+        typer.echo(f"OK vision provider configured: {loaded.vision.model}")
+    else:
+        typer.echo("OK vision provider: disabled")
     unsafe_messages = _unsafe_config_messages(config_path)
     if unsafe_messages:
         unsafe_list = ", ".join(unsafe_messages)
@@ -229,6 +238,9 @@ def _unsafe_config_messages(config_path: Path) -> list[str]:
     telegram = raw.get("telegram", {})
     if isinstance(telegram, dict) and telegram.get("bot_token"):
         messages.append("telegram.bot_token")
+    vision = raw.get("vision", {})
+    if isinstance(vision, dict) and vision.get("api_key"):
+        messages.append("vision.api_key")
     return messages
 
 

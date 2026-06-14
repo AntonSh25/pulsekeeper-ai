@@ -47,10 +47,30 @@ class TelegramConfig:
 
 
 @dataclass(frozen=True)
+class VisionConfig:
+    enabled: bool = False
+    base_url: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+    api_key_env: str = "OPENAI_API_KEY"
+    timeout: int = 60
+
+    def __repr__(self) -> str:
+        key_repr = "'***'" if self.api_key else "None"
+        return (
+            "VisionConfig("
+            f"enabled={self.enabled!r}, base_url={self.base_url!r}, "
+            f"model={self.model!r}, api_key={key_repr}, "
+            f"api_key_env={self.api_key_env!r}, timeout={self.timeout!r})"
+        )
+
+
+@dataclass(frozen=True)
 class PulseKeeperConfig:
     storage: StorageConfig
     telegram: TelegramConfig
     llm: LLMConfig
+    vision: VisionConfig = VisionConfig()
 
 
 def load_config(path: Path | str, env_path: Path | str | None = None) -> PulseKeeperConfig:
@@ -75,6 +95,7 @@ def load_config(path: Path | str, env_path: Path | str | None = None) -> PulseKe
         storage=_load_storage_config(raw.get("storage"), config_path=config_path),
         telegram=_load_telegram_config(raw.get("telegram"), env=env),
         llm=_load_llm_config(llm_section, env=env),
+        vision=_load_vision_config(raw.get("vision"), env=env),
     )
 
 
@@ -184,6 +205,44 @@ def _load_telegram_config(section: Any, *, env: Mapping[str, str]) -> TelegramCo
     return TelegramConfig(enabled=enabled, bot_token=token, bot_token_env=bot_token_env)
 
 
+def _load_vision_config(section: Any, *, env: Mapping[str, str]) -> VisionConfig:
+    if section is None:
+        return VisionConfig()
+    if not isinstance(section, dict):
+        raise ConfigError("vision config section must be a TOML table")
+
+    enabled = section.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ConfigError("vision.enabled must be true or false")
+    if not enabled:
+        return VisionConfig(enabled=False)
+
+    base_url = section.get("base_url")
+    if not isinstance(base_url, str) or not base_url:
+        raise ConfigError("Missing required vision.base_url")
+    model = section.get("model")
+    if not isinstance(model, str) or not model:
+        raise ConfigError("Missing required vision.model")
+
+    api_key = _resolve_vision_api_key(section, env=env)
+    if not api_key:
+        api_key_env = section.get("api_key_env", "OPENAI_API_KEY")
+        raise ConfigError(
+            f"Missing vision api_key. Set {api_key_env} in .env or the process environment."
+        )
+    api_key_env = section.get("api_key_env", "OPENAI_API_KEY")
+    if not isinstance(api_key_env, str) or not api_key_env:
+        raise ConfigError("vision.api_key_env must be a non-empty string")
+    return VisionConfig(
+        enabled=True,
+        base_url=base_url,
+        model=model,
+        api_key=api_key,
+        api_key_env=api_key_env,
+        timeout=_positive_int(section.get("timeout", 60), "vision.timeout"),
+    )
+
+
 def _load_env(env_path: Path | str | None, *, config_path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     path = Path(env_path) if env_path is not None else config_path.parent / ".env"
@@ -214,6 +273,23 @@ def _resolve_api_key(section: dict[str, Any], *, env: Mapping[str, str]) -> str 
     return env.get(api_key_env)
 
 
+def _resolve_vision_api_key(section: dict[str, Any], *, env: Mapping[str, str]) -> str | None:
+    direct = section.get("api_key")
+    if isinstance(direct, str) and direct:
+        if direct.startswith("${") and direct.endswith("}"):
+            return env.get(direct[2:-1])
+        return direct
+    if direct == "":
+        raise ConfigError("vision.api_key must be a non-empty string when provided")
+    if direct is not None:
+        raise ConfigError("vision.api_key must be a string when provided")
+
+    api_key_env = section.get("api_key_env", "OPENAI_API_KEY")
+    if not isinstance(api_key_env, str) or not api_key_env:
+        raise ConfigError("vision.api_key_env must be a non-empty string")
+    return env.get(api_key_env)
+
+
 def _required_str(section: dict[str, Any], key: str) -> str:
     value = section.get(key)
     if not isinstance(value, str) or not value:
@@ -238,6 +314,7 @@ __all__ = [
     "PulseKeeperConfig",
     "StorageConfig",
     "TelegramConfig",
+    "VisionConfig",
     "load_config",
     "redact_secret",
 ]

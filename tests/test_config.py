@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from pulsekeeper.config import ConfigError, load_config, redact_secret
+from pulsekeeper.config import ConfigError, VisionConfig, load_config, redact_secret
 from pulsekeeper.llm.agent import LLMConfig, build_agent
 
 
@@ -38,6 +38,41 @@ max_tool_iterations = 3
     )
     assert "sk-tes...tenv" not in repr(config.llm)
     assert "***" in repr(config.llm)
+
+
+def test_load_config_includes_optional_vision_provider_without_leaking_key(tmp_path, monkeypatch):
+    config_path = tmp_path / "config.toml"
+    env_path = tmp_path / ".env"
+    config_path.write_text(
+        """
+[llm]
+auth_mode = "subscription"
+model = "gpt-test"
+
+[vision]
+enabled = true
+base_url = "https://vision.example.test/v1"
+model = "gpt-vision-test"
+api_key_env = "PULSEKEEPER_TEST_VISION_KEY"
+timeout = 30
+""".strip(),
+        encoding="utf-8",
+    )
+    env_path.write_text("PULSEKEEPER_TEST_VISION_KEY=sk-vis...secret\n", encoding="utf-8")
+    monkeypatch.delenv("PULSEKEEPER_TEST_VISION_KEY", raising=False)
+
+    config = load_config(config_path, env_path=env_path)
+
+    assert config.vision == VisionConfig(
+        enabled=True,
+        base_url="https://vision.example.test/v1",
+        model="gpt-vision-test",
+        api_key="sk-vis...secret",
+        api_key_env="PULSEKEEPER_TEST_VISION_KEY",
+        timeout=30,
+    )
+    assert "sk-vis...secret" not in repr(config.vision)
+    assert "***" in repr(config.vision)
 
 
 def test_load_config_includes_storage_and_telegram_sections_without_leaking_token(

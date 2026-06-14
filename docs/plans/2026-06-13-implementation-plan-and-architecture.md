@@ -464,7 +464,8 @@ FTS5 по summary text.
 - ~~Config and doctor diagnostics, including redacted provider reachability check.~~
 - ~~Apple Health XML import slice for weight, sleep, workouts, and steps, with idempotent external-ID tracking and CLI command.~~
 - ~~Telegram photo metadata handling and local media storage seam for food-image logging.~~
-- ~~Quality gate: `uv run pytest -q` passes — 135 tests.~~
+- ~~Optional BYOK vision provider config/doctor seam for future food-photo descriptions.~~
+- ~~Quality gate: `uv run pytest -q` passes — 138 tests.~~
 - ~~Quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -855,7 +856,7 @@ If API/export is practical:
 
 1. ~~Telegram photo handling.~~
 2. ~~Local media storage.~~
-3. Optional BYOK vision provider.
+3. ~~Optional BYOK vision provider.~~
 4. ~~Image-derived entry tool path.~~
 5. ~~Ask clarification if needed.~~
 

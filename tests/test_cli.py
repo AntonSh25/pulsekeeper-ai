@@ -387,6 +387,34 @@ api_key = "sk-secret-provider-key"
     assert "sk-sec...-key" not in result.stdout
 
 
+def test_doctor_reports_optional_vision_provider_without_live_network_or_secret(tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[llm]
+auth_mode = "subscription"
+base_url = "https://llm.example.test/v1"
+model = "gpt-test"
+
+[vision]
+enabled = true
+base_url = "https://vision.example.test/v1"
+model = "gpt-vision-test"
+api_key = "sk-vis...secret"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor", "--config", str(config_path)])
+
+    assert result.exit_code == 0
+    assert "OK vision provider configured: gpt-vision-test" in result.stdout
+    assert "sk-vis...secret" not in result.stdout
+
+
 def test_telegram_run_requires_configured_token(tmp_path):
     config_path = tmp_path / "config.toml"
     config_path.write_text(
