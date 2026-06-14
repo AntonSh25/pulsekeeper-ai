@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -23,6 +24,7 @@ from pulsekeeper.domain import (
 )
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.memory import ConversationStateStore, ProfileStore, SummaryMemoryStore
+from pulsekeeper.storage.reminders import Reminder, ReminderStore
 from pulsekeeper.summary import HealthSummary, build_summary_prose_prompt, summarize_entries
 
 AuthMode = Literal["api_key", "subscription", "test"]
@@ -102,6 +104,7 @@ class AgentStores:
     profile: ProfileStore | None = None
     summary_memory: SummaryMemoryStore | None = None
     conversation_state: ConversationStateStore | None = None
+    reminders: ReminderStore | None = None
 
 
 @dataclass(frozen=True)
@@ -243,6 +246,26 @@ class WriteSummaryMemoryArgs(BaseModel):
     kind: str
     text: str
     metadata: dict[str, Any] | None = None
+
+
+class ScheduleReminderArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: str
+    time: str
+    timezone: str | None = None
+
+
+class ListRemindersArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_disabled: bool = False
+
+
+class CancelReminderArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reminder_id: int
 
 
 async def log_health_entry(ctx: RunContext[AgentDeps], args: LogHealthEntryArgs) -> dict[str, Any]:
@@ -440,6 +463,76 @@ async def write_summary_memory(
     ).model_dump()
 
 
+async def schedule_reminder(
+    ctx: RunContext[AgentDeps],
+    args: ScheduleReminderArgs,
+) -> dict[str, Any]:
+    """Schedule a daily reminder using the user's timezone by default."""
+    store = _require_reminder_store(ctx.deps)
+    reminder_time = _parse_hhmm(args.time)
+    if reminder_time is None:
+        return ToolResult(
+            ok=False,
+            summary="Reminder time must be in HH:MM format.",
+            data={"status": "invalid_time"},
+        ).model_dump()
+    timezone = args.timezone or ctx.deps.timezone
+    next_due_at = _next_daily_due_at(
+        now=ctx.deps.now or datetime.now(UTC),
+        reminder_time=reminder_time,
+        timezone=timezone,
+    )
+    reminder = await store.create(
+        user_id=ctx.deps.user_id,
+        type=args.type,
+        schedule={"kind": "daily", "time": args.time},
+        timezone=timezone,
+        next_due_at=next_due_at,
+    )
+    return ToolResult(
+        ok=True,
+        summary=f"Scheduled daily {reminder.type} reminder at {args.time} {timezone}.",
+        data={"status": "scheduled", "reminder": _reminder_json(reminder)},
+    ).model_dump()
+
+
+async def list_reminders(
+    ctx: RunContext[AgentDeps],
+    args: ListRemindersArgs,
+) -> dict[str, Any]:
+    """List reminders for the current user."""
+    store = _require_reminder_store(ctx.deps)
+    reminders = await store.list(ctx.deps.user_id)
+    if not args.include_disabled:
+        reminders = [reminder for reminder in reminders if reminder.enabled]
+    return ToolResult(
+        ok=True,
+        summary=f"Found {len(reminders)} reminders.",
+        data={"reminders": [_reminder_json(reminder) for reminder in reminders]},
+    ).model_dump()
+
+
+async def cancel_reminder(
+    ctx: RunContext[AgentDeps],
+    args: CancelReminderArgs,
+) -> dict[str, Any]:
+    """Disable a specific reminder belonging to the current user."""
+    store = _require_reminder_store(ctx.deps)
+    reminder = await store.get(args.reminder_id)
+    if reminder is None or reminder.user_id != ctx.deps.user_id:
+        return ToolResult(
+            ok=False,
+            summary=f"Reminder #{args.reminder_id} was not found.",
+            data={"status": "not_found"},
+        ).model_dump()
+    await store.disable(args.reminder_id)
+    return ToolResult(
+        ok=True,
+        summary=f"Cancelled reminder #{args.reminder_id}.",
+        data={"status": "cancelled", "reminder": _reminder_json(reminder)},
+    ).model_dump()
+
+
 async def _write_durable_summary_patterns(
     deps: AgentDeps,
     period: SummaryPeriod,
@@ -486,6 +579,12 @@ def _require_conversation_state_store(deps: AgentDeps) -> ConversationStateStore
     if deps.stores is None or deps.stores.conversation_state is None:
         raise RuntimeError("conversation state store is not configured")
     return deps.stores.conversation_state
+
+
+def _require_reminder_store(deps: AgentDeps) -> ReminderStore:
+    if deps.stores is None or deps.stores.reminders is None:
+        raise RuntimeError("reminder store is not configured")
+    return deps.stores.reminders
 
 
 @dataclass(frozen=True)
@@ -635,6 +734,28 @@ def _summary_display_end_date(start_dt: datetime, end_dt: datetime) -> date:
     return end_dt.date()
 
 
+def _parse_hhmm(value: str) -> time | None:
+    try:
+        hour_text, minute_text = value.split(":", maxsplit=1)
+        return time(hour=int(hour_text), minute=int(minute_text))
+    except ValueError:
+        return None
+
+
+def _next_daily_due_at(*, now: datetime, reminder_time: time, timezone: str) -> datetime:
+    if now.tzinfo is None or now.utcoffset() is None:
+        now = now.replace(tzinfo=UTC)
+    try:
+        local_timezone = ZoneInfo(timezone)
+    except ZoneInfoNotFoundError:
+        local_timezone = UTC
+    local_now = now.astimezone(local_timezone)
+    candidate = datetime.combine(local_now.date(), reminder_time, tzinfo=local_timezone)
+    if candidate <= local_now:
+        candidate += timedelta(days=1)
+    return candidate.astimezone(UTC)
+
+
 def _datetime_json(value: datetime | date) -> str:
     if isinstance(value, datetime):
         return value.isoformat()
@@ -654,29 +775,51 @@ def _entry_json(entry: HealthEntry) -> dict[str, Any]:
     }
 
 
+def _reminder_json(reminder: Reminder) -> dict[str, Any]:
+    return {
+        "id": reminder.id,
+        "type": reminder.type,
+        "schedule": reminder.schedule,
+        "timezone": reminder.timezone,
+        "enabled": reminder.enabled,
+        "last_sent_at": (
+            _datetime_json(reminder.last_sent_at) if reminder.last_sent_at is not None else None
+        ),
+        "next_due_at": (
+            _datetime_json(reminder.next_due_at) if reminder.next_due_at is not None else None
+        ),
+    }
+
+
 __all__ = [
     "AgentDeps",
     "AgentReply",
     "AgentStores",
+    "CancelReminderArgs",
     "DEFAULT_POLICY_PROMPT",
     "DeleteLastEntryArgs",
     "GetUserProfileArgs",
     "HealthSummaryArgs",
     "LLMConfig",
+    "ListRemindersArgs",
     "LogHealthEntryArgs",
     "MessageContext",
     "PulseKeeperAgent",
+    "ScheduleReminderArgs",
     "SearchHealthMemoryArgs",
     "SetUserProfileFactArgs",
     "ToolResult",
     "UpdateLastEntryArgs",
     "WriteSummaryMemoryArgs",
     "build_agent",
+    "cancel_reminder",
     "delete_last_entry",
     "get_health_summary",
     "get_user_profile",
+    "list_reminders",
     "log_health_entry",
     "run_turn",
+    "schedule_reminder",
     "search_health_memory",
     "set_user_profile_fact",
     "update_last_entry",

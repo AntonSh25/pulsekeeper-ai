@@ -746,10 +746,10 @@ FTS5 по summary text.
 1. ~~Add reminder model/store.~~
 2. ~~Add scheduler loop.~~
 3. ~~Add Telegram reminder delivery.~~
-4. Add reminder tools:
+4. ~~Add reminder tools:
    - `schedule_reminder`;
    - list reminders;
-   - cancel reminder.
+   - cancel reminder.~~
 5. ~~Add commands:
    - `/remind weight daily 09:00`;
    - `/reminders`;

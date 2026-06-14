@@ -22,6 +22,7 @@ from pulsekeeper.llm.agent import (
 )
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.memory import ConversationStateStore, ProfileStore, SummaryMemoryStore
+from pulsekeeper.storage.reminders import ReminderStore
 from pulsekeeper.storage.sqlite import Database
 
 
@@ -602,6 +603,110 @@ def test_function_model_can_manage_profile_and_summary_memory(tmp_path):
             assert len(matches) == 1
             assert matches[0].text == "Weight was stable around 84 kg."
             assert seen_payloads[-1]["data"]["facts"] == {"timezone": "Europe/Moscow"}
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
+def test_function_model_can_schedule_list_and_cancel_reminders(tmp_path):
+    async def scenario() -> None:
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            user_id = await create_user(db)
+            health_entries = HealthEntryStore(db)
+            reminders = ReminderStore(db)
+            now = datetime(2026, 6, 13, 18, 0, tzinfo=UTC)
+            deps = AgentDeps(
+                user_id=user_id,
+                health_entries=health_entries,
+                stores=AgentStores(health_entries=health_entries, reminders=reminders),
+                now=now,
+                timezone="Europe/Moscow",
+            )
+            context = MessageContext(
+                user_id=user_id,
+                chat_id=123,
+                text="напомни взвешиваться каждый день в 09:00, покажи и отключи",
+                attachments=[],
+                now=now,
+                timezone="Europe/Moscow",
+                message_id=456,
+                source="telegram",
+            )
+            calls = 0
+            seen_payloads: list[dict[str, Any]] = []
+
+            def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                nonlocal calls
+                calls += 1
+                tool_names = {tool.name for tool in info.function_tools}
+                assert "schedule_reminder" in tool_names
+                assert "list_reminders" in tool_names
+                assert "cancel_reminder" in tool_names
+                if calls == 1:
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "schedule_reminder",
+                                {"type": "weight", "time": "09:00"},
+                                tool_call_id="schedule-reminder-1",
+                            )
+                        ]
+                    )
+                if calls == 2:
+                    seen_payloads.append(messages[-1].parts[0].content)
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "list_reminders",
+                                {},
+                                tool_call_id="list-reminders-1",
+                            )
+                        ]
+                    )
+                if calls == 3:
+                    seen_payloads.append(messages[-1].parts[0].content)
+                    reminder_id = seen_payloads[0]["data"]["reminder"]["id"]
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "cancel_reminder",
+                                {"reminder_id": reminder_id},
+                                tool_call_id="cancel-reminder-1",
+                            )
+                        ]
+                    )
+                seen_payloads.append(messages[-1].parts[0].content)
+                return ModelResponse(parts=[TextPart("Reminder configured and cancelled.")])
+
+            agent = build_agent(
+                LLMConfig(auth_mode="test", base_url=None, model="function"),
+                model=FunctionModel(model, model_name="reminder-tools-test"),
+            )
+
+            reply = await run_turn(agent, context, deps)
+            stored = await reminders.list(user_id)
+
+            assert reply.text == "Reminder configured and cancelled."
+            assert reply.tool_trace == [
+                {"tool_name": "schedule_reminder", "outcome": "success"},
+                {"tool_name": "list_reminders", "outcome": "success"},
+                {"tool_name": "cancel_reminder", "outcome": "success"},
+            ]
+            assert seen_payloads[0]["summary"] == (
+                "Scheduled daily weight reminder at 09:00 Europe/Moscow."
+            )
+            assert seen_payloads[0]["data"]["reminder"]["next_due_at"] == (
+                "2026-06-14T06:00:00+00:00"
+            )
+            assert seen_payloads[1]["data"]["reminders"][0]["type"] == "weight"
+            assert seen_payloads[2]["summary"] == "Cancelled reminder #1."
+            assert len(stored) == 1
+            assert stored[0].enabled is False
+            assert stored[0].schedule == {"kind": "daily", "time": "09:00"}
+            assert stored[0].timezone == "Europe/Moscow"
         finally:
             await db.close()
 

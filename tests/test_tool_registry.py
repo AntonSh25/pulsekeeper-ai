@@ -24,6 +24,9 @@ def test_default_tool_registry_exposes_metadata_for_initial_tools():
         "get_user_profile",
         "search_health_memory",
         "write_summary_memory",
+        "schedule_reminder",
+        "list_reminders",
+        "cancel_reminder",
     ]
 
     log_spec = registry.get("log_health_entry")
@@ -54,6 +57,20 @@ def test_default_tool_registry_exposes_metadata_for_initial_tools():
 
     memory_spec = registry.get("search_health_memory")
     assert memory_spec.permissions == frozenset({"summary_memory:read"})
+
+    schedule_spec = registry.get("schedule_reminder")
+    assert schedule_spec.input_model.__name__ == "ScheduleReminderArgs"
+    assert schedule_spec.permissions == frozenset({"reminders:write"})
+    assert "timezone" in " ".join(schedule_spec.safety_notes).lower()
+
+    list_spec = registry.get("list_reminders")
+    assert list_spec.input_model.__name__ == "ListRemindersArgs"
+    assert list_spec.permissions == frozenset({"reminders:read"})
+
+    cancel_spec = registry.get("cancel_reminder")
+    assert cancel_spec.input_model.__name__ == "CancelReminderArgs"
+    assert cancel_spec.permissions == frozenset({"reminders:write"})
+    assert "ambiguous" in " ".join(cancel_spec.safety_notes).lower()
 
 
 def test_tool_registry_validates_arguments_with_pydantic_schema():
@@ -110,10 +127,13 @@ def test_build_agent_registers_tools_from_default_registry():
     assert result.output == "ok"
     assert seen_tool_names == [
         "ask_clarifying_question",
+        "cancel_reminder",
         "delete_last_entry",
         "get_health_summary",
         "get_user_profile",
+        "list_reminders",
         "log_health_entry",
+        "schedule_reminder",
         "search_health_memory",
         "set_user_profile_fact",
         "update_last_entry",
