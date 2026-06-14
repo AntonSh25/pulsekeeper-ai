@@ -888,10 +888,10 @@ Do not claim precise calories from images.
 
 ### Tasks
 
-1. Add `LICENSE`.
-2. Add `CONTRIBUTING.md`.
-3. Add issue templates.
-4. Add PR template.
+1. ~~Add `LICENSE`.~~
+2. ~~Add `CONTRIBUTING.md`.~~
+3. ~~Add issue templates.~~
+4. ~~Add PR template.~~
 5. Add architecture docs:
    - adapters;
    - agent tools;
