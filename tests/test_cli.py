@@ -1,5 +1,6 @@
 import json
 from datetime import date
+from urllib.error import URLError
 
 from typer.testing import CliRunner
 
@@ -247,3 +248,87 @@ api_key = "***"
     assert "Move inline secrets to .env" in result.stdout
     assert "telegram-secret-token" not in result.stdout
     assert "***" not in result.stdout
+
+
+def test_doctor_checks_provider_reachability_with_redacted_request(monkeypatch, tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[llm]
+auth_mode = "api_key"
+base_url = "https://llm.example.test/v1/"
+model = "gpt-test"
+api_key = "sk-secret-provider-key"
+""".strip(),
+        encoding="utf-8",
+    )
+    requested = {}
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"data": []}'
+
+    def fake_urlopen(request, timeout):
+        requested["url"] = request.full_url
+        requested["auth"] = request.headers.get("Authorization")
+        requested["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr("pulsekeeper.cli.urlopen", fake_urlopen)
+
+    result = runner.invoke(
+        app,
+        ["doctor", "--config", str(config_path), "--check-provider-network"],
+    )
+
+    assert result.exit_code == 0
+    assert requested == {
+        "url": "https://llm.example.test/v1/models",
+        "auth": "Bearer sk-secret-provider-key",
+        "timeout": 60,
+    }
+    assert "OK provider reachable" in result.stdout
+    assert "sk-secret-provider-key" not in result.stdout
+
+
+def test_doctor_reports_unreachable_provider_without_leaking_secret(monkeypatch, tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[llm]
+auth_mode = "api_key"
+base_url = "https://llm.example.test/v1"
+model = "gpt-test"
+api_key = "sk-secret-provider-key"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    def fake_urlopen(request, timeout):
+        raise URLError("provider rejected sk-secret-provider-key")
+
+    monkeypatch.setattr("pulsekeeper.cli.urlopen", fake_urlopen)
+
+    result = runner.invoke(
+        app,
+        ["doctor", "--config", str(config_path), "--check-provider-network"],
+    )
+
+    assert result.exit_code == 1
+    assert "FAIL provider reachable" in result.stdout
+    assert "provider rejected" in result.stdout
+    assert "sk-secret-provider-key" not in result.stdout

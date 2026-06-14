@@ -6,11 +6,15 @@ import tomllib
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import urljoin
+from urllib.request import Request, urlopen
 
 import typer
 
-from pulsekeeper.config import ConfigError, load_config
+from pulsekeeper.config import ConfigError, load_config, redact_secret
 from pulsekeeper.domain import parse_health_log
+from pulsekeeper.llm.agent import LLMConfig
 from pulsekeeper.storage import JsonlHealthLog
 from pulsekeeper.storage.sqlite import Database
 from pulsekeeper.summary import summarize_entries
@@ -140,7 +144,13 @@ def doctor_command(
     else:
         typer.echo("OK unsafe config: no inline secrets found")
     if check_provider_network:
-        typer.echo("WARN provider reachable: live network check is not implemented yet")
+        try:
+            _check_provider_reachable(loaded.llm)
+            typer.echo("OK provider reachable: /models responded")
+        except Exception as exc:
+            failures += 1
+            message = redact_secret(str(exc), secrets=(loaded.llm.api_key or "",))
+            typer.echo(f"FAIL provider reachable: {message}")
     else:
         typer.echo("WARN provider reachable: skipped (use --check-provider-network)")
 
@@ -154,6 +164,24 @@ async def _check_db_migrations(path: Path) -> None:
         await database.initialize()
     finally:
         await database.close()
+
+
+def _check_provider_reachable(config: LLMConfig) -> None:
+    if config.base_url is None:
+        raise RuntimeError("provider base_url is not configured")
+    base_url = config.base_url.rstrip("/") + "/"
+    request = Request(urljoin(base_url, "models"), method="GET")
+    if config.api_key:
+        request.add_header("Authorization", f"Bearer {config.api_key}")
+    try:
+        with urlopen(request, timeout=config.timeout) as response:
+            if getattr(response, "status", 200) >= 400:
+                raise RuntimeError(f"provider returned HTTP {response.status}")
+            response.read()
+    except HTTPError as exc:
+        raise RuntimeError(f"provider returned HTTP {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError(f"provider request failed: {exc.reason}") from exc
 
 
 def _unsafe_config_messages(config_path: Path) -> list[str]:

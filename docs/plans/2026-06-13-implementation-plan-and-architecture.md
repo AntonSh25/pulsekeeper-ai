@@ -461,7 +461,8 @@ FTS5 по summary text.
 - ~~LLM access config and OpenAI-compatible/pydantic-ai provider construction seam.~~
 - ~~Aiogram Telegram gateway skeleton with owner allowlist/private-chat guard.~~
 - ~~Telegram slash commands: `/start`, `/help`, `/summary`, `/today`, `/week`, `/undo`, `/profile`, `/reminders` placeholder.~~
-- ~~Quality gate: `uv run pytest -q` passes — 91 tests.~~
+- ~~Config and doctor diagnostics, including redacted provider reachability check.~~
+- ~~Quality gate: `uv run pytest -q` passes — 108 tests.~~
 - ~~Quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -642,15 +643,15 @@ FTS5 по summary text.
    - ~~DB migrations OK~~;
    - ~~Telegram token configured if needed~~;
    - ~~provider configured~~;
-   - provider reachable;
+   - ~~provider reachable~~;
    - ~~no obvious unsafe config~~.
 5. ~~Add redacted diagnostics.~~
 
 ### Acceptance criteria
 
-- new user can run doctor and understand next action;
-- doctor does not leak secrets;
-- config errors are actionable.
+- ~~new user can run doctor and understand next action~~;
+- ~~doctor does not leak secrets~~;
+- ~~config errors are actionable~~.
 
 ---
 
