@@ -874,7 +874,7 @@ Do not claim precise calories from images.
 2. ~~Dockerfile.~~
 3. ~~docker-compose example.~~
 4. ~~Persistent volume docs.~~
-5. systemd example.
+5. ~~systemd example.~~
 6. GitHub Actions:
    - tests;
    - ruff;

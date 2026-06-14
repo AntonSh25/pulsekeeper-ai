@@ -36,3 +36,25 @@ def test_deployment_doc_explains_persistent_volume_and_doctor_flow():
     assert "config.toml" in deployment_doc
     assert ".env" in deployment_doc
     assert "Do not commit real secrets" in deployment_doc
+
+
+def test_systemd_example_runs_telegram_loop_with_externalized_config_and_secrets():
+    unit = (ROOT / "deploy" / "systemd" / "pulsekeeper.service.example").read_text(
+        encoding="utf-8"
+    )
+    deployment_doc = (ROOT / "docs" / "deployment.md").read_text(encoding="utf-8")
+
+    assert "Description=PulseKeeper Telegram health memory agent" in unit
+    assert "User=pulsekeeper" in unit
+    assert "EnvironmentFile=/etc/pulsekeeper/pulsekeeper.env" in unit
+    assert "PULSEKEEPER_CONFIG=/etc/pulsekeeper/config.toml" in unit
+    assert "ExecStart=/usr/local/bin/pulsekeeper telegram-run" in unit
+    assert "Restart=on-failure" in unit
+    assert "NoNewPrivileges=true" in unit
+    assert "TELEGRAM_BOT_TOKEN=" not in unit
+    assert "OPENAI_API_KEY=" not in unit
+
+    assert "systemd" in deployment_doc
+    assert "pulsekeeper.service.example" in deployment_doc
+    assert "/etc/pulsekeeper/pulsekeeper.env" in deployment_doc
+    assert "systemctl enable --now pulsekeeper" in deployment_doc

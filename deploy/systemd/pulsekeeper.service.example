@@ -1,0 +1,26 @@
+[Unit]
+Description=PulseKeeper Telegram health memory agent
+Documentation=https://github.com/AntonSh25/pulsekeeper-ai
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pulsekeeper
+Group=pulsekeeper
+WorkingDirectory=/var/lib/pulsekeeper
+Environment=PULSEKEEPER_CONFIG=/etc/pulsekeeper/config.toml
+Environment=PULSEKEEPER_HOME=/var/lib/pulsekeeper
+EnvironmentFile=/etc/pulsekeeper/pulsekeeper.env
+ExecStart=/usr/local/bin/pulsekeeper telegram-run --config ${PULSEKEEPER_CONFIG}
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pulsekeeper
+
+[Install]
+WantedBy=multi-user.target
