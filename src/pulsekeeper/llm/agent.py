@@ -23,7 +23,7 @@ from pulsekeeper.domain import (
 )
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.memory import ConversationStateStore, ProfileStore, SummaryMemoryStore
-from pulsekeeper.summary import summarize_entries
+from pulsekeeper.summary import build_summary_prose_prompt, summarize_entries
 
 AuthMode = Literal["api_key", "subscription", "test"]
 SUBSCRIPTION_PROVIDER_API_KEY = "pulsekeeper-hermes-proxy"
@@ -283,6 +283,7 @@ async def get_health_summary(ctx: RunContext[AgentDeps], args: HealthSummaryArgs
             "counts_by_kind": summary.counts_by_kind,
             "blocks": summary.blocks,
             "patterns": summary.patterns,
+            "prose_prompt": build_summary_prose_prompt(summary),
         },
     ).model_dump()
 

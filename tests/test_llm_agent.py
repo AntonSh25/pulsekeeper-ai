@@ -226,6 +226,10 @@ def test_function_model_can_get_health_summary_from_store(tmp_path):
                 "weight": ["Latest 84.2 kg."],
             }
             assert tool_result_payload["data"]["patterns"] == []
+            assert "prose_prompt" in tool_result_payload["data"]
+            prose_prompt = tool_result_payload["data"]["prose_prompt"]
+            assert "Write a concise Telegram-friendly health journal summary" in prose_prompt
+            assert "Do not diagnose, prescribe, or infer causes." in prose_prompt
         finally:
             await db.close()
 

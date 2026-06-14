@@ -1,7 +1,7 @@
 from datetime import date
 
 from pulsekeeper.domain import HealthEntry
-from pulsekeeper.summary import summarize_entries
+from pulsekeeper.summary import build_summary_prose_prompt, summarize_entries
 
 
 def test_daily_summary_groups_entries_and_keeps_latest_weight():
@@ -126,3 +126,39 @@ def test_summary_builds_health_blocks_and_cautious_patterns():
         "  - Weight decreased by 0.5 kg over this period; "
         "treat short-term changes cautiously."
     ) in summary.to_markdown()
+
+
+def test_summary_prose_prompt_wraps_structured_data_with_health_safety_bounds():
+    entries = [
+        HealthEntry(
+            kind="weight",
+            note="вес 84.2 кг",
+            value=84.2,
+            unit="kg",
+            logged_at=date(2026, 6, 8),
+        ),
+        HealthEntry(
+            kind="weight",
+            note="вес 83.7 кг",
+            value=83.7,
+            unit="kg",
+            logged_at=date(2026, 6, 14),
+        ),
+        HealthEntry(kind="symptom", note="болела голова вечером", logged_at=date(2026, 6, 12)),
+    ]
+    summary = summarize_entries(entries, start=date(2026, 6, 8), end=date(2026, 6, 14))
+
+    prompt = build_summary_prose_prompt(summary, language="ru")
+
+    assert "Write a concise Telegram-friendly health journal summary in ru." in prompt
+    assert "Do not diagnose, prescribe, or infer causes." in prompt
+    assert "If mentioning symptoms or medications, keep them factual" in prompt
+    assert "Period: 2026-06-08..2026-06-14" in prompt
+    assert "Total entries: 3" in prompt
+    assert "weight: Latest 83.7 kg; change -0.5 kg over period." in prompt
+    assert "symptoms_medications: Symptoms: болела голова вечером" in prompt
+    assert (
+        "Weight decreased by 0.5 kg over this period; treat short-term changes cautiously."
+        in prompt
+    )
+    assert "Return prose only; do not include raw JSON." in prompt

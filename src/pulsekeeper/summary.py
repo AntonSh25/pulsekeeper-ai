@@ -59,6 +59,32 @@ def summarize_entries(entries: list[HealthEntry], *, start: date, end: date) -> 
     )
 
 
+def build_summary_prose_prompt(summary: HealthSummary, *, language: str = "en") -> str:
+    """Build a safety-bounded prompt for optional LLM prose around deterministic data."""
+    title = _format_title(summary.period_start, summary.period_end)
+    lines = [
+        f"Write a concise Telegram-friendly health journal summary in {language}.",
+        "Use only the deterministic facts below.",
+        "Do not diagnose, prescribe, or infer causes.",
+        (
+            "If mentioning symptoms or medications, keep them factual and suggest "
+            "professional care only for urgent/risky symptoms."
+        ),
+        "Period: " + title,
+        f"Total entries: {summary.total_entries}",
+        f"Counts by kind: {_format_counts(summary.counts_by_kind)}",
+    ]
+    if summary.blocks:
+        lines.append("Blocks:")
+        for key, values in summary.blocks.items():
+            lines.extend(f"- {key}: {value}" for value in values)
+    if summary.patterns:
+        lines.append("Cautious patterns:")
+        lines.extend(f"- {pattern}" for pattern in summary.patterns)
+    lines.append("Return prose only; do not include raw JSON.")
+    return "\n".join(lines)
+
+
 def _latest_weight(entries: list[HealthEntry]) -> float | None:
     for entry in reversed(entries):
         if entry.kind == "weight" and entry.value is not None:

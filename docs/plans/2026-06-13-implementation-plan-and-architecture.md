@@ -714,7 +714,7 @@ FTS5 по summary text.
 
 1. ~~Bootstrap deterministic daily/weekly summaries and gateway counts exist; richer structured summary builder now returns health blocks and cautious patterns.~~
 2. ~~Add no-LLM fallback for `/today`, `/week`, `/summary`.~~
-3. Add optional LLM prose layer.
+3. ~~Add optional LLM prose layer.~~
 4. Summary blocks:
    - ~~weight~~;
    - ~~food~~;
