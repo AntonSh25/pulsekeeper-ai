@@ -23,7 +23,7 @@ from pulsekeeper.domain import (
     SummaryMemoryDraft,
 )
 from pulsekeeper.storage.health_entries import HealthEntryStore
-from pulsekeeper.storage.memory import ProfileStore, SummaryMemoryStore
+from pulsekeeper.storage.memory import ConversationStateStore, ProfileStore, SummaryMemoryStore
 
 AuthMode = Literal["api_key", "subscription", "test"]
 SUBSCRIPTION_PROVIDER_API_KEY = "pulsekeeper-hermes-proxy"
@@ -101,6 +101,7 @@ class AgentStores:
     health_entries: HealthEntryStore
     profile: ProfileStore | None = None
     summary_memory: SummaryMemoryStore | None = None
+    conversation_state: ConversationStateStore | None = None
 
 
 @dataclass(frozen=True)
@@ -182,6 +183,9 @@ class AskClarifyingQuestionArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str
+    state_type: str | None = None
+    payload: dict[str, Any] | None = None
+    ttl_seconds: int = 900
 
 
 class UpdateLastEntryArgs(BaseModel):
@@ -282,6 +286,14 @@ async def ask_clarifying_question(
     args: AskClarifyingQuestionArgs,
 ) -> dict[str, Any]:
     """Ask a clarification without writing anything to health storage."""
+    if args.state_type is not None and args.payload is not None:
+        store = _require_conversation_state_store(ctx.deps)
+        await store.put(
+            ctx.deps.user_id,
+            args.state_type,
+            args.payload,
+            ttl_seconds=args.ttl_seconds,
+        )
     return ToolResult(
         ok=True,
         summary=args.text,
@@ -425,6 +437,12 @@ def _require_summary_memory_store(deps: AgentDeps) -> SummaryMemoryStore:
     if deps.stores is None or deps.stores.summary_memory is None:
         raise RuntimeError("summary memory store is not configured")
     return deps.stores.summary_memory
+
+
+def _require_conversation_state_store(deps: AgentDeps) -> ConversationStateStore:
+    if deps.stores is None or deps.stores.conversation_state is None:
+        raise RuntimeError("conversation state store is not configured")
+    return deps.stores.conversation_state
 
 
 @dataclass(frozen=True)

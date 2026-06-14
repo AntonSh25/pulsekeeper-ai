@@ -696,13 +696,13 @@ FTS5 по summary text.
    - “не 84.2, а 83.9”;
    - “удали последнюю запись”;
    - “это был обед, не завтрак”.~~
-5. Use conversation state when target is ambiguous.
+5. ~~Use conversation state when target is ambiguous.~~
 
 ### Acceptance criteria
 
 - ~~last entry can be corrected;~~
 - ~~deletion is reversible/auditable via soft delete;~~
-- ambiguous corrections ask clarification.
+- ~~ambiguous corrections ask clarification.~~
 
 ---
 

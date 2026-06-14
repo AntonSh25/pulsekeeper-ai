@@ -21,7 +21,7 @@ from pulsekeeper.llm.agent import (
     run_turn,
 )
 from pulsekeeper.storage.health_entries import HealthEntryStore
-from pulsekeeper.storage.memory import ProfileStore, SummaryMemoryStore
+from pulsekeeper.storage.memory import ConversationStateStore, ProfileStore, SummaryMemoryStore
 from pulsekeeper.storage.sqlite import Database
 
 
@@ -313,6 +313,90 @@ def test_function_model_can_correct_and_delete_last_health_entry(tmp_path):
             assert seen_payloads[0]["data"]["entry"]["value"] == 83.9
             assert seen_payloads[1]["summary"] == "Deleted latest weight entry."
             assert remaining == []
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
+def test_function_model_persists_pending_ambiguous_correction_when_asking_clarification(
+    tmp_path,
+):
+    async def scenario() -> None:
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            user_id = await create_user(db)
+            health_entries = HealthEntryStore(db)
+            conversation_state = ConversationStateStore(db)
+            now = datetime(2026, 6, 13, 18, 0, tzinfo=UTC)
+            deps = AgentDeps(
+                user_id=user_id,
+                health_entries=health_entries,
+                stores=AgentStores(
+                    health_entries=health_entries,
+                    conversation_state=conversation_state,
+                ),
+                now=now,
+            )
+            context = MessageContext(
+                user_id=user_id,
+                chat_id=123,
+                text="исправь вчерашнюю запись на 83.9",
+                attachments=[],
+                now=now,
+                timezone="UTC",
+                message_id=456,
+                source="telegram",
+            )
+
+            calls = 0
+
+            def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                nonlocal calls
+                calls += 1
+                assert any(tool.name == "ask_clarifying_question" for tool in info.function_tools)
+                if calls == 1:
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "ask_clarifying_question",
+                                {
+                                    "text": "Which entry should I correct?",
+                                    "state_type": "pending_correction",
+                                    "payload": {
+                                        "action": "update_last_entry",
+                                        "value": 83.9,
+                                        "unit": "kg",
+                                        "reason": "ambiguous target",
+                                    },
+                                    "ttl_seconds": 900,
+                                },
+                                tool_call_id="clarify-correction-1",
+                            )
+                        ]
+                    )
+                return ModelResponse(parts=[TextPart("Which entry should I correct?")])
+
+            agent = build_agent(
+                LLMConfig(auth_mode="test", base_url=None, model="function"),
+                model=FunctionModel(model, model_name="ambiguous-correction-test"),
+            )
+
+            reply = await run_turn(agent, context, deps)
+            pending = await conversation_state.get(user_id, "pending_correction")
+
+            assert reply.text == "Which entry should I correct?"
+            assert reply.tool_trace == [
+                {"tool_name": "ask_clarifying_question", "outcome": "success"}
+            ]
+            assert pending == {
+                "action": "update_last_entry",
+                "value": 83.9,
+                "unit": "kg",
+                "reason": "ambiguous target",
+            }
+            assert await health_entries.get_last(user_id) is None
         finally:
             await db.close()
 
