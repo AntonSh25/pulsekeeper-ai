@@ -692,16 +692,16 @@ FTS5 по summary text.
 1. ~~Implement `HealthEntryStore.update` for last-entry correction foundation.~~
 2. ~~Implement `HealthEntryStore.soft_delete` / soft delete.~~
 3. ~~Implement `/undo` in aiogram gateway.~~
-4. Add natural-language correction flows:
+4. ~~Add natural-language correction flows:
    - “не 84.2, а 83.9”;
    - “удали последнюю запись”;
-   - “это был обед, не завтрак”.
+   - “это был обед, не завтрак”.~~
 5. Use conversation state when target is ambiguous.
 
 ### Acceptance criteria
 
-- last entry can be corrected;
-- deletion is reversible/auditable via soft delete;
+- ~~last entry can be corrected;~~
+- ~~deletion is reversible/auditable via soft delete;~~
 - ambiguous corrections ask clarification.
 
 ---

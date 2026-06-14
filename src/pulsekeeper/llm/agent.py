@@ -15,7 +15,13 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import UsageLimits
 
-from pulsekeeper.domain import HealthEntryDraft, HealthEntryKind, SummaryMemoryDraft
+from pulsekeeper.domain import (
+    HealthEntry,
+    HealthEntryDraft,
+    HealthEntryKind,
+    HealthEntryPatch,
+    SummaryMemoryDraft,
+)
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.memory import ProfileStore, SummaryMemoryStore
 
@@ -178,6 +184,33 @@ class AskClarifyingQuestionArgs(BaseModel):
     text: str
 
 
+class UpdateLastEntryArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: HealthEntryKind | None = None
+    new_kind: HealthEntryKind | None = None
+    note: str | None = None
+    logged_at: datetime | None = None
+    value: float | None = None
+    unit: str | None = None
+    metadata: dict[str, Any] | None = None
+
+    def to_patch(self) -> HealthEntryPatch:
+        patch_data: dict[str, Any] = {}
+        if "new_kind" in self.model_fields_set:
+            patch_data["kind"] = self.new_kind
+        for field_name in ("note", "logged_at", "value", "unit", "metadata"):
+            if field_name in self.model_fields_set:
+                patch_data[field_name] = getattr(self, field_name)
+        return HealthEntryPatch(**patch_data)
+
+
+class DeleteLastEntryArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: HealthEntryKind | None = None
+
+
 class SetUserProfileFactArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -253,6 +286,56 @@ async def ask_clarifying_question(
         ok=True,
         summary=args.text,
         data={"status": "clarification_requested"},
+    ).model_dump()
+
+
+async def update_last_entry(
+    ctx: RunContext[AgentDeps],
+    args: UpdateLastEntryArgs,
+) -> dict[str, Any]:
+    """Correct the latest non-deleted health entry, optionally constrained by kind."""
+    entry = await ctx.deps.health_entries.get_last(ctx.deps.user_id, kind=args.kind)
+    if entry is None or entry.id is None:
+        return ToolResult(
+            ok=False,
+            summary="No matching health entry to update.",
+            data={"status": "not_found"},
+        ).model_dump()
+
+    patch = args.to_patch()
+    if not patch.model_fields_set:
+        return ToolResult(
+            ok=False,
+            summary="No correction fields were provided.",
+            data={"status": "no_changes", "entry_id": entry.id},
+        ).model_dump()
+
+    updated = await ctx.deps.health_entries.update(entry.id, patch)
+    return ToolResult(
+        ok=True,
+        summary=f"Updated latest {updated.kind} entry.",
+        data={"status": "updated", "entry": _entry_json(updated)},
+    ).model_dump()
+
+
+async def delete_last_entry(
+    ctx: RunContext[AgentDeps],
+    args: DeleteLastEntryArgs,
+) -> dict[str, Any]:
+    """Soft-delete the latest non-deleted health entry, optionally constrained by kind."""
+    entry = await ctx.deps.health_entries.get_last(ctx.deps.user_id, kind=args.kind)
+    if entry is None or entry.id is None:
+        return ToolResult(
+            ok=False,
+            summary="No matching health entry to delete.",
+            data={"status": "not_found"},
+        ).model_dump()
+
+    await ctx.deps.health_entries.soft_delete(entry.id)
+    return ToolResult(
+        ok=True,
+        summary=f"Deleted latest {entry.kind} entry.",
+        data={"status": "deleted", "entry": _entry_json(entry)},
     ).model_dump()
 
 
@@ -491,11 +574,25 @@ def _datetime_json(value: datetime | date) -> str:
     return value.isoformat()
 
 
+def _entry_json(entry: HealthEntry) -> dict[str, Any]:
+    return {
+        "id": entry.id,
+        "kind": entry.kind,
+        "note": entry.note,
+        "value": entry.value,
+        "unit": entry.unit,
+        "logged_at": _datetime_json(entry.logged_at),
+        "source": entry.source,
+        "metadata": entry.metadata,
+    }
+
+
 __all__ = [
     "AgentDeps",
     "AgentReply",
     "AgentStores",
     "DEFAULT_POLICY_PROMPT",
+    "DeleteLastEntryArgs",
     "GetUserProfileArgs",
     "HealthSummaryArgs",
     "LLMConfig",
@@ -505,13 +602,16 @@ __all__ = [
     "SearchHealthMemoryArgs",
     "SetUserProfileFactArgs",
     "ToolResult",
+    "UpdateLastEntryArgs",
     "WriteSummaryMemoryArgs",
     "build_agent",
+    "delete_last_entry",
     "get_health_summary",
     "get_user_profile",
     "log_health_entry",
     "run_turn",
     "search_health_memory",
     "set_user_profile_fact",
+    "update_last_entry",
     "write_summary_memory",
 ]

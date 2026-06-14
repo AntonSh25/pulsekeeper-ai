@@ -227,6 +227,98 @@ def test_function_model_can_get_health_summary_from_store(tmp_path):
     run(scenario())
 
 
+def test_function_model_can_correct_and_delete_last_health_entry(tmp_path):
+    async def scenario() -> None:
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            user_id = await create_user(db)
+            store = HealthEntryStore(db)
+            await store.append(
+                user_id,
+                LogHealthEntryArgs(
+                    kind="weight",
+                    note="morning weight 84.2 kg",
+                    logged_at=datetime(2026, 6, 13, 7, 0, tzinfo=UTC),
+                    value=84.2,
+                    unit="kg",
+                ).to_draft(source="telegram"),
+            )
+            fixed_now = datetime(2026, 6, 13, 8, 0, tzinfo=UTC)
+            deps = AgentDeps(user_id=user_id, health_entries=store, now=fixed_now)
+            context = MessageContext(
+                user_id=user_id,
+                chat_id=123,
+                text="не 84.2, а 83.9, потом удали последнюю запись",
+                attachments=[],
+                now=fixed_now,
+                timezone="UTC",
+                message_id=456,
+                source="telegram",
+            )
+            calls = 0
+            seen_payloads: list[dict[str, Any]] = []
+
+            def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                nonlocal calls
+                calls += 1
+                tool_names = {tool.name for tool in info.function_tools}
+                assert "update_last_entry" in tool_names
+                assert "delete_last_entry" in tool_names
+                if calls == 1:
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "update_last_entry",
+                                {"kind": "weight", "value": 83.9, "unit": "kg"},
+                                tool_call_id="update-last-1",
+                            )
+                        ]
+                    )
+                if calls == 2:
+                    seen_payloads.append(messages[-1].parts[0].content)
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "delete_last_entry",
+                                {"kind": "weight"},
+                                tool_call_id="delete-last-1",
+                            )
+                        ]
+                    )
+                seen_payloads.append(messages[-1].parts[0].content)
+                return ModelResponse(
+                    parts=[TextPart("Corrected then deleted the latest weight entry.")]
+                )
+
+            agent = build_agent(
+                LLMConfig(auth_mode="test", base_url=None, model="function"),
+                policy_prompt=DEFAULT_POLICY_PROMPT,
+                model=FunctionModel(model, model_name="correction-tools-test"),
+            )
+
+            reply = await run_turn(agent, context, deps)
+            remaining = await store.list(
+                user_id,
+                start=datetime(2026, 6, 13, 0, 0, tzinfo=UTC),
+                end=datetime(2026, 6, 14, 0, 0, tzinfo=UTC),
+            )
+
+            assert reply.text == "Corrected then deleted the latest weight entry."
+            assert reply.tool_trace == [
+                {"tool_name": "update_last_entry", "outcome": "success"},
+                {"tool_name": "delete_last_entry", "outcome": "success"},
+            ]
+            assert seen_payloads[0]["summary"] == "Updated latest weight entry."
+            assert seen_payloads[0]["data"]["entry"]["value"] == 83.9
+            assert seen_payloads[1]["summary"] == "Deleted latest weight entry."
+            assert remaining == []
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
 def test_function_model_can_manage_profile_and_summary_memory(tmp_path):
     async def scenario() -> None:
         db = Database(tmp_path / "state.db")

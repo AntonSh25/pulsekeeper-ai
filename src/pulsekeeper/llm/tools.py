@@ -11,18 +11,22 @@ from pydantic_ai import Agent, RunContext
 from pulsekeeper.llm.agent import (
     AgentDeps,
     AskClarifyingQuestionArgs,
+    DeleteLastEntryArgs,
     GetUserProfileArgs,
     HealthSummaryArgs,
     LogHealthEntryArgs,
     SearchHealthMemoryArgs,
     SetUserProfileFactArgs,
+    UpdateLastEntryArgs,
     WriteSummaryMemoryArgs,
     ask_clarifying_question,
+    delete_last_entry,
     get_health_summary,
     get_user_profile,
     log_health_entry,
     search_health_memory,
     set_user_profile_fact,
+    update_last_entry,
     write_summary_memory,
 )
 
@@ -105,6 +109,34 @@ def build_default_tool_registry() -> ToolRegistry:
                 handler=ask_clarifying_question,
                 permissions=frozenset(),
                 safety_notes=("Use when the requested health action is ambiguous.",),
+            ),
+            ToolSpec(
+                name="update_last_entry",
+                description=(
+                    "Correct the latest health entry, optionally filtering by kind before applying "
+                    "provided replacement fields."
+                ),
+                input_model=UpdateLastEntryArgs,
+                output_shape="ToolResult",
+                handler=update_last_entry,
+                permissions=frozenset({"health_entries:write"}),
+                safety_notes=(
+                    "Use only for user-requested corrections to the latest matching entry.",
+                    "Ask a clarifying question first when the correction target is ambiguous.",
+                ),
+            ),
+            ToolSpec(
+                name="delete_last_entry",
+                description="Soft delete the latest health entry, optionally filtering by kind.",
+                input_model=DeleteLastEntryArgs,
+                output_shape="ToolResult",
+                handler=delete_last_entry,
+                permissions=frozenset({"health_entries:write"}),
+                safety_notes=(
+                    "Use soft delete so deletion remains auditable and excludes entries "
+                    "from normal lists.",
+                    "Ask a clarifying question first when the delete target is ambiguous.",
+                ),
             ),
             ToolSpec(
                 name="set_user_profile_fact",

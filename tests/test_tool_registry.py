@@ -18,6 +18,8 @@ def test_default_tool_registry_exposes_metadata_for_initial_tools():
         "log_health_entry",
         "get_health_summary",
         "ask_clarifying_question",
+        "update_last_entry",
+        "delete_last_entry",
         "set_user_profile_fact",
         "get_user_profile",
         "search_health_memory",
@@ -36,6 +38,16 @@ def test_default_tool_registry_exposes_metadata_for_initial_tools():
 
     clarify_spec = registry.get("ask_clarifying_question")
     assert clarify_spec.permissions == frozenset()
+
+    update_spec = registry.get("update_last_entry")
+    assert update_spec.input_model.__name__ == "UpdateLastEntryArgs"
+    assert update_spec.permissions == frozenset({"health_entries:write"})
+    assert "ambiguous" in " ".join(update_spec.safety_notes).lower()
+
+    delete_spec = registry.get("delete_last_entry")
+    assert delete_spec.input_model.__name__ == "DeleteLastEntryArgs"
+    assert delete_spec.permissions == frozenset({"health_entries:write"})
+    assert "soft delete" in " ".join(delete_spec.safety_notes).lower()
 
     profile_spec = registry.get("set_user_profile_fact")
     assert profile_spec.permissions == frozenset({"profile:write"})
@@ -98,11 +110,13 @@ def test_build_agent_registers_tools_from_default_registry():
     assert result.output == "ok"
     assert seen_tool_names == [
         "ask_clarifying_question",
+        "delete_last_entry",
         "get_health_summary",
         "get_user_profile",
         "log_health_entry",
         "search_health_memory",
         "set_user_profile_fact",
+        "update_last_entry",
         "write_summary_memory",
     ]
 
