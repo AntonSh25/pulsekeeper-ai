@@ -221,6 +221,11 @@ def test_function_model_can_get_health_summary_from_store(tmp_path):
             assert tool_result_payload["data"]["end"] == "2026-06-14"
             assert tool_result_payload["data"]["total_count"] == 2
             assert tool_result_payload["data"]["counts_by_kind"] == {"food": 1, "weight": 1}
+            assert tool_result_payload["data"]["blocks"] == {
+                "food": ["1 food entry: lunch"],
+                "weight": ["Latest 84.2 kg."],
+            }
+            assert tool_result_payload["data"]["patterns"] == []
         finally:
             await db.close()
 

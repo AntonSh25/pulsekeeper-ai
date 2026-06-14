@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, Literal
@@ -24,6 +23,7 @@ from pulsekeeper.domain import (
 )
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.memory import ConversationStateStore, ProfileStore, SummaryMemoryStore
+from pulsekeeper.summary import summarize_entries
 
 AuthMode = Literal["api_key", "subscription", "test"]
 SUBSCRIPTION_PROVIDER_API_KEY = "pulsekeeper-hermes-proxy"
@@ -264,10 +264,14 @@ async def log_health_entry(ctx: RunContext[AgentDeps], args: LogHealthEntryArgs)
 
 
 async def get_health_summary(ctx: RunContext[AgentDeps], args: HealthSummaryArgs) -> dict[str, Any]:
-    """Return deterministic counts of stored health entries for a period."""
+    """Return deterministic structured summary data for stored health entries."""
     start_dt, end_dt = _summary_bounds(args, now=ctx.deps.now or datetime.now(UTC))
     entries = await ctx.deps.health_entries.list(ctx.deps.user_id, start=start_dt, end=end_dt)
-    counts = Counter(entry.kind for entry in entries)
+    summary = summarize_entries(
+        entries,
+        start=start_dt.date(),
+        end=_summary_display_end_date(start_dt, end_dt),
+    )
     return ToolResult(
         ok=True,
         summary=f"Found {len(entries)} health entries.",
@@ -275,8 +279,10 @@ async def get_health_summary(ctx: RunContext[AgentDeps], args: HealthSummaryArgs
             "period": args.period,
             "start": start_dt.date().isoformat(),
             "end": end_dt.date().isoformat(),
-            "total_count": len(entries),
-            "counts_by_kind": dict(sorted(counts.items())),
+            "total_count": summary.total_entries,
+            "counts_by_kind": summary.counts_by_kind,
+            "blocks": summary.blocks,
+            "patterns": summary.patterns,
         },
     ).model_dump()
 
@@ -584,6 +590,12 @@ def _summary_bounds(args: HealthSummaryArgs, *, now: datetime) -> tuple[datetime
 
 def _date_start(value: date) -> datetime:
     return datetime.combine(value, time.min, tzinfo=UTC)
+
+
+def _summary_display_end_date(start_dt: datetime, end_dt: datetime) -> date:
+    if end_dt.date() > start_dt.date():
+        return end_dt.date() - timedelta(days=1)
+    return end_dt.date()
 
 
 def _datetime_json(value: datetime | date) -> str:
