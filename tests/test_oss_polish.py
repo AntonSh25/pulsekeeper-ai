@@ -63,6 +63,7 @@ def test_readme_has_three_minute_quickstart_and_demo_artifact_references():
     assert "uv sync --extra dev" in readme
     assert "cp .env.example .env" in readme
     assert "uv run pulsekeeper doctor" in readme
+    assert "uv run pulsekeeper export jsonl" in readme
     assert "uv run pulsekeeper telegram-run" in readme
     assert "TELEGRAM_BOT_TOKEN" in readme
     assert "PULSEKEEPER_OPENAI_API_KEY" in readme

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import csv
 import json
 import tomllib
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
+from io import StringIO
 from pathlib import Path
 from typing import Annotated, Any
 from urllib.error import HTTPError, URLError
@@ -14,11 +16,12 @@ from urllib.request import Request, urlopen
 import typer
 
 from pulsekeeper.config import ConfigError, load_config, redact_secret
-from pulsekeeper.domain import parse_health_log
+from pulsekeeper.domain import HealthEntry, parse_health_log
 from pulsekeeper.importers.apple_health import import_apple_health_xml
 from pulsekeeper.llm.agent import LLMConfig
 from pulsekeeper.reminder_scheduler import TelegramReminderScheduler, run_scheduler_loop
 from pulsekeeper.storage import JsonlHealthLog
+from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.sqlite import Database
 from pulsekeeper.storage.users import GatewayStateStore
 from pulsekeeper.summary import summarize_entries
@@ -98,6 +101,116 @@ async def _import_apple_health_async(export_xml: Path, *, storage_dir: Path, use
         return await import_apple_health_xml(database, user_id=user_id, path=export_xml)
     finally:
         await database.close()
+
+
+@app.command("export")
+def export_command(
+    fmt: Annotated[str, typer.Argument(help="Export format: jsonl, csv, or markdown.")],
+    storage_dir: Annotated[Path, typer.Option("--storage-dir")] = DEFAULT_STORAGE_DIR,
+    user_id: Annotated[int, typer.Option("--user-id")] = 1,
+    output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
+    redact: Annotated[
+        bool,
+        typer.Option("--redact", help="Omit gateway identifiers from metadata."),
+    ] = False,
+) -> None:
+    """Export SQLite health entries as JSONL, CSV, or Markdown."""
+    if fmt not in {"jsonl", "csv", "markdown"}:
+        raise typer.BadParameter("format must be 'jsonl', 'csv', or 'markdown'")
+    rendered, count = asyncio.run(
+        _export_health_entries_async(fmt, storage_dir=storage_dir, user_id=user_id, redact=redact)
+    )
+    if output is None:
+        typer.echo(rendered, nl=not rendered.endswith("\n"))
+    else:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(rendered, encoding="utf-8")
+        typer.echo(f"Exported {count} health entries to {output}")
+
+
+async def _export_health_entries_async(
+    fmt: str,
+    *,
+    storage_dir: Path,
+    user_id: int,
+    redact: bool,
+) -> tuple[str, int]:
+    database = Database(storage_dir / "state.db")
+    try:
+        await database.initialize()
+        entries = await HealthEntryStore(database).list(
+            user_id,
+            start=datetime(1970, 1, 1, tzinfo=UTC),
+            end=datetime(3000, 1, 1, tzinfo=UTC),
+        )
+    finally:
+        await database.close()
+    if redact:
+        entries = [_redact_health_entry(entry) for entry in entries]
+    if fmt == "jsonl":
+        return _render_health_entries_jsonl(entries), len(entries)
+    if fmt == "csv":
+        return _render_health_entries_csv(entries), len(entries)
+    return _render_health_entries_markdown(entries), len(entries)
+
+
+_REDACTED_METADATA_KEYS = {
+    "telegram_chat_id",
+    "telegram_user_id",
+    "telegram_message_id",
+    "chat_id",
+    "user_id",
+}
+
+
+def _redact_health_entry(entry: HealthEntry) -> HealthEntry:
+    if not entry.metadata:
+        return entry
+    metadata = {
+        key: value
+        for key, value in entry.metadata.items()
+        if key not in _REDACTED_METADATA_KEYS
+    }
+    return entry.model_copy(update={"metadata": metadata or None})
+
+
+def _render_health_entries_jsonl(entries: list[HealthEntry]) -> str:
+    return "".join(
+        json.dumps(entry.model_dump(mode="json"), ensure_ascii=False, sort_keys=True) + "\n"
+        for entry in entries
+    )
+
+
+def _render_health_entries_csv(entries: list[HealthEntry]) -> str:
+    buffer = StringIO()
+    fieldnames = ["kind", "note", "value", "unit", "logged_at", "source"]
+    writer = csv.DictWriter(buffer, fieldnames=fieldnames)
+    writer.writeheader()
+    for entry in entries:
+        writer.writerow(
+            {
+                "kind": entry.kind,
+                "note": entry.note or "",
+                "value": "" if entry.value is None else entry.value,
+                "unit": entry.unit or "",
+                "logged_at": entry.logged_at.isoformat(),
+                "source": entry.source or "",
+            }
+        )
+    return buffer.getvalue()
+
+
+def _render_health_entries_markdown(entries: list[HealthEntry]) -> str:
+    lines = ["# PulseKeeper health export", ""]
+    if not entries:
+        lines.append("No health entries found.")
+    for entry in entries:
+        value = ""
+        if entry.value is not None:
+            value = f" ({entry.value:g}{f' {entry.unit}' if entry.unit else ''})"
+        note = entry.note or ""
+        lines.append(f"- {entry.logged_at.isoformat()} — {entry.kind}: {note}{value}")
+    return "\n".join(lines) + "\n"
 
 
 @app.command("config")

@@ -100,6 +100,16 @@ uv run pulsekeeper telegram-run --config ~/.pulsekeeper/config.toml
 
 Runtime data lives under `~/.pulsekeeper/state.db` by default, with media, exports, and redacted logs alongside it. See `docs/screenshots.md` for sanitized demo screenshot/GIF placeholders and capture rules.
 
+Export your local health entries whenever you want a portable copy:
+
+```bash
+uv run pulsekeeper export jsonl --storage-dir ~/.pulsekeeper --output ~/.pulsekeeper/exports/health.jsonl --redact
+uv run pulsekeeper export csv --storage-dir ~/.pulsekeeper --output ~/.pulsekeeper/exports/health.csv --redact
+uv run pulsekeeper export markdown --storage-dir ~/.pulsekeeper --redact
+```
+
+`--redact` omits obvious Telegram/chat identifiers from exported metadata; still review files before sharing because health notes are private.
+
 ## Development
 
 ```bash

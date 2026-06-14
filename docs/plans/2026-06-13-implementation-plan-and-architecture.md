@@ -1,7 +1,7 @@
 # PulseKeeper: архитектура и пошаговый план реализации
 
 Дата: 2026-06-13  
-Статус: рабочий implementation roadmap, обновлён после инкремента `52508e3`
+Статус: рабочий implementation roadmap, обновлён после SQLite export CLI инкремента
 Репозиторий: `AntonSh25/pulsekeeper-ai`  
 Ветка: `feat/mvp-summaries`
 
@@ -466,6 +466,8 @@ FTS5 по summary text.
 - ~~Telegram photo metadata handling and local media storage seam for food-image logging.~~
 - ~~Optional BYOK vision provider config/doctor seam for future food-photo descriptions.~~
 - ~~Quality gate: `uv run pytest -q` passes — 142 tests.~~
+- ~~SQLite health-entry export CLI: `pulsekeeper export jsonl|csv|markdown` with optional metadata redaction.~~
+- ~~Quality gate: `uv run pytest -q` passes — 146 tests.~~
 - ~~Quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -1007,7 +1009,7 @@ MVP считается useful, когда пользователь может:
    - “напомни взвешиваться по утрам”;
 4. receive concise useful confirmations/summaries;
 5. correct/delete last entry;
-6. export data;
+6. ~~export data;~~
 7. understand where data is stored and what goes to LLM provider.
 
 ---

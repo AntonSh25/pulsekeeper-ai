@@ -6,7 +6,7 @@ from urllib.error import URLError
 from typer.testing import CliRunner
 
 from pulsekeeper.cli import app
-from pulsekeeper.domain import HealthEntry
+from pulsekeeper.domain import HealthEntry, HealthEntryDraft
 from pulsekeeper.storage import JsonlHealthLog
 
 runner = CliRunner()
@@ -209,6 +209,82 @@ def test_import_apple_health_command_loads_xml_into_sqlite(tmp_path):
     assert len(entries) == 1
     assert entries[0].kind == "weight"
     assert entries[0].source == "import"
+
+
+def test_export_command_writes_sqlite_health_entries_as_jsonl_csv_and_markdown(tmp_path):
+    from pulsekeeper.storage.health_entries import HealthEntryStore
+    from pulsekeeper.storage.sqlite import Database
+
+    storage_dir = tmp_path / "pulsekeeper"
+
+    async def seed_entries():
+        db = Database(storage_dir / "state.db")
+        await db.initialize()
+        try:
+            await db.execute("INSERT OR IGNORE INTO users(id) VALUES (?)", (1,))
+            store = HealthEntryStore(db)
+            await store.append(
+                1,
+                HealthEntryDraft(
+                    kind="weight",
+                    note="утренний вес",
+                    value=84.2,
+                    unit="kg",
+                    logged_at=datetime(2026, 6, 1, 7, 0, tzinfo=UTC),
+                    source="telegram",
+                    metadata={"telegram_chat_id": "123456789", "note": "private"},
+                ),
+            )
+            await store.append(
+                1,
+                HealthEntryDraft(
+                    kind="food",
+                    note="завтрак омлет",
+                    logged_at=datetime(2026, 6, 1, 9, 0, tzinfo=UTC),
+                    source="manual",
+                ),
+            )
+        finally:
+            await db.close()
+
+    asyncio.run(seed_entries())
+
+    jsonl_path = tmp_path / "exports" / "health.jsonl"
+    jsonl_result = runner.invoke(
+        app,
+        [
+            "export",
+            "jsonl",
+            "--storage-dir",
+            str(storage_dir),
+            "--output",
+            str(jsonl_path),
+            "--redact",
+        ],
+    )
+    assert jsonl_result.exit_code == 0
+    assert "Exported 2 health entries" in jsonl_result.stdout
+    jsonl_lines = [json.loads(line) for line in jsonl_path.read_text(encoding="utf-8").splitlines()]
+    assert [line["kind"] for line in jsonl_lines] == ["weight", "food"]
+    assert jsonl_lines[0]["metadata"] == {"note": "private"}
+    assert "123456789" not in jsonl_path.read_text(encoding="utf-8")
+
+    csv_path = tmp_path / "exports" / "health.csv"
+    csv_result = runner.invoke(
+        app,
+        ["export", "csv", "--storage-dir", str(storage_dir), "--output", str(csv_path)],
+    )
+    assert csv_result.exit_code == 0
+    assert "kind,note,value,unit,logged_at,source" in csv_path.read_text(encoding="utf-8")
+    assert "утренний вес" in csv_path.read_text(encoding="utf-8")
+
+    markdown_result = runner.invoke(
+        app,
+        ["export", "markdown", "--storage-dir", str(storage_dir)],
+    )
+    assert markdown_result.exit_code == 0
+    assert "# PulseKeeper health export" in markdown_result.stdout
+    assert "- 2026-06-01T07:00:00+00:00 — weight: утренний вес (84.2 kg)" in markdown_result.stdout
 
 
 def test_config_command_prints_redacted_setup_summary(tmp_path):
