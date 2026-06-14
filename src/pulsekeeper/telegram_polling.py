@@ -9,6 +9,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from pulsekeeper.agent_runtime import ModelRuntime
+from pulsekeeper.config import redact_secret
 from pulsekeeper.telegram_transport import handle_telegram_update
 
 
@@ -98,6 +99,8 @@ async def run_polling_loop(
     idle_sleep_seconds: float = 0.0,
     error_backoff_seconds: float = 5.0,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    log: Callable[[str], None] | None = None,
+    secrets: tuple[str, ...] = (),
 ) -> None:
     """Run Telegram long polling, persisting offsets after handled updates."""
     offset = await gateway_state.get_telegram_offset(bot_profile)
@@ -111,7 +114,9 @@ async def run_polling_loop(
                 timeout=timeout,
                 model_runtime=model_runtime,
             )
-        except Exception:
+        except Exception as exc:
+            if log is not None:
+                log(f"WARN Telegram polling error: {redact_secret(str(exc), secrets=secrets)}")
             iterations += 1
             if error_backoff_seconds:
                 await sleep(error_backoff_seconds)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import tomllib
+from collections.abc import Callable
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated, Any
@@ -279,16 +280,20 @@ def telegram_run(
         typer.echo(f"FAIL Telegram token: Set {loaded.telegram.bot_token_env} in .env")
         raise typer.Exit(1)
 
-    asyncio.run(
-        _telegram_run_async(
-            loaded.storage.database_path,
-            loaded.storage.dir,
-            token=loaded.telegram.bot_token,
-            bot_profile=bot_profile,
-            timeout=timeout,
-            max_iterations=max_iterations,
+    try:
+        asyncio.run(
+            _telegram_run_async(
+                loaded.storage.database_path,
+                loaded.storage.dir,
+                token=loaded.telegram.bot_token,
+                bot_profile=bot_profile,
+                timeout=timeout,
+                max_iterations=max_iterations,
+                log=typer.echo,
+            )
         )
-    )
+    except KeyboardInterrupt:
+        pass
     typer.echo("Telegram polling stopped")
 
 
@@ -300,6 +305,7 @@ async def _telegram_run_async(
     bot_profile: str,
     timeout: int,
     max_iterations: int | None,
+    log: Callable[[str], None] | None = None,
 ) -> None:
     database = Database(database_path)
     try:
@@ -313,6 +319,8 @@ async def _telegram_run_async(
             bot_profile=bot_profile,
             timeout=timeout,
             max_iterations=max_iterations,
+            log=log,
+            secrets=(token,),
         )
     finally:
         await database.close()

@@ -256,3 +256,33 @@ def test_polling_loop_backs_off_and_recovers_after_transient_network_error(tmp_p
         "https://api.telegram.org/botsecret-token/getUpdates",
         {"timeout": 0, "offset": 41},
     )
+
+
+def test_polling_loop_logs_network_errors_without_leaking_token(tmp_path):
+    http = FakeHttpClient()
+    http.responses.append(RuntimeError("failed for https://api.telegram.org/botsecret-token/getUpdates"))
+    messages = []
+
+    async def fake_sleep(seconds):
+        pass
+
+    state = FakeGatewayStateStore(offset=41)
+    client = TelegramBotApiClient(token="secret-token", http_client=http)
+
+    asyncio.run(
+        run_polling_loop(
+            client,
+            storage_dir=tmp_path,
+            gateway_state=state,
+            bot_profile="default",
+            timeout=0,
+            max_iterations=1,
+            error_backoff_seconds=1.0,
+            sleep=fake_sleep,
+            log=messages.append,
+            secrets=("secret-token",),
+        )
+    )
+
+    assert messages == ["WARN Telegram polling error: failed for https://api.telegram.org/bot***/getUpdates"]
+    assert "secret-token" not in messages[0]
