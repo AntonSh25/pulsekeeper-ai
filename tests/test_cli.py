@@ -331,4 +331,61 @@ api_key = "sk-secret-provider-key"
     assert result.exit_code == 1
     assert "FAIL provider reachable" in result.stdout
     assert "provider rejected" in result.stdout
-    assert "sk-secret-provider-key" not in result.stdout
+    assert "sk-sec...-key" not in result.stdout
+
+
+def test_telegram_run_requires_configured_token(tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[telegram]
+enabled = true
+bot_token_env = "MISSING_TELEGRAM_TOKEN"
+
+[llm]
+auth_mode = "subscription"
+base_url = "https://llm.example.test/v1"
+model = "gpt-test"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["telegram-run", "--config", str(config_path), "--max-iterations", "0"],
+    )
+
+    assert result.exit_code == 1
+    assert "Set MISSING_TELEGRAM_TOKEN" in result.stdout
+
+
+def test_telegram_run_initializes_state_without_printing_token(tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[telegram]
+enabled = true
+bot_token = "123456:telegram-secret-token"
+
+[llm]
+auth_mode = "subscription"
+base_url = "https://llm.example.test/v1"
+model = "gpt-test"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        ["telegram-run", "--config", str(config_path), "--max-iterations", "0"],
+    )
+
+    assert result.exit_code == 0
+    assert "Telegram polling stopped" in result.stdout
+    assert "telegram-secret-token" not in result.stdout

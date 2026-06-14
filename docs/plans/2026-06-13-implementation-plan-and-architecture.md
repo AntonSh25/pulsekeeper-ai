@@ -664,11 +664,11 @@ FTS5 по summary text.
 1. ~~Add real HTTP client seam for `getUpdates` / `sendMessage` via `urllib`-based `TelegramBotApiClient`.~~
 2. ~~Add `TELEGRAM_BOT_TOKEN` config / `.env.example` entry for polling seam.~~
 3. Implement `telegram-run` long polling loop:
-   - load offset;
-   - get updates;
-   - handle messages;
-   - send replies;
-   - persist offset;
+   - ~~load offset~~;
+   - ~~get updates~~;
+   - ~~handle messages~~;
+   - ~~send replies~~;
+   - ~~persist offset~~;
    - graceful shutdown.
 4. Add retry/backoff.
 5. Add safe logs.

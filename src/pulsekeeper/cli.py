@@ -17,9 +17,15 @@ from pulsekeeper.domain import parse_health_log
 from pulsekeeper.llm.agent import LLMConfig
 from pulsekeeper.storage import JsonlHealthLog
 from pulsekeeper.storage.sqlite import Database
+from pulsekeeper.storage.users import GatewayStateStore
 from pulsekeeper.summary import summarize_entries
 from pulsekeeper.telegram_adapter import handle_telegram_text
-from pulsekeeper.telegram_polling import TelegramBotApiClient, poll_once
+from pulsekeeper.telegram_polling import (
+    TelegramBotApiClient,
+    UrlLibTelegramHttpClient,
+    poll_once,
+    run_polling_loop,
+)
 from pulsekeeper.telegram_transport import handle_telegram_update
 
 app = typer.Typer(help="PulseKeeper CLI")
@@ -250,3 +256,63 @@ def telegram_poll_once(
     )
     next_offset = poll_once(client, storage_dir=storage_dir, offset=offset, timeout=0)
     typer.echo(f"next_offset={next_offset}")
+
+
+@app.command("telegram-run")
+def telegram_run(
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Path to config.toml."),
+    ] = DEFAULT_CONFIG_PATH,
+    bot_profile: Annotated[str, typer.Option("--bot-profile")] = "default",
+    timeout: Annotated[int, typer.Option("--timeout")] = 30,
+    max_iterations: Annotated[int | None, typer.Option("--max-iterations", hidden=True)] = None,
+) -> None:
+    """Run the live Telegram long-polling loop."""
+    try:
+        loaded = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(f"Config error: {exc}")
+        raise typer.Exit(1) from exc
+
+    if not loaded.telegram.bot_token:
+        typer.echo(f"FAIL Telegram token: Set {loaded.telegram.bot_token_env} in .env")
+        raise typer.Exit(1)
+
+    asyncio.run(
+        _telegram_run_async(
+            loaded.storage.database_path,
+            loaded.storage.dir,
+            token=loaded.telegram.bot_token,
+            bot_profile=bot_profile,
+            timeout=timeout,
+            max_iterations=max_iterations,
+        )
+    )
+    typer.echo("Telegram polling stopped")
+
+
+async def _telegram_run_async(
+    database_path: Path,
+    storage_dir: Path,
+    *,
+    token: str,
+    bot_profile: str,
+    timeout: int,
+    max_iterations: int | None,
+) -> None:
+    database = Database(database_path)
+    try:
+        await database.initialize()
+        state = GatewayStateStore(database)
+        client = TelegramBotApiClient(token=token, http_client=UrlLibTelegramHttpClient())
+        await run_polling_loop(
+            client,
+            storage_dir=storage_dir,
+            gateway_state=state,
+            bot_profile=bot_profile,
+            timeout=timeout,
+            max_iterations=max_iterations,
+        )
+    finally:
+        await database.close()

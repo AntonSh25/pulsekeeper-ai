@@ -1,5 +1,7 @@
+import asyncio
+
 from pulsekeeper.agent_runtime import MessageContext, ToolCall
-from pulsekeeper.telegram_polling import TelegramBotApiClient, poll_once
+from pulsekeeper.telegram_polling import TelegramBotApiClient, poll_once, run_polling_loop
 
 
 class FakeHttpClient:
@@ -24,6 +26,21 @@ class FakeModelRuntime:
                 arguments={"kind": "weight", "note": message, "value": 84.2, "unit": "kg"},
             )
         ]
+
+
+class FakeGatewayStateStore:
+    def __init__(self, offset=None):
+        self.offset = offset
+        self.saved_offsets = []
+
+    async def get_telegram_offset(self, bot_profile):
+        assert bot_profile == "default"
+        return self.offset
+
+    async def set_telegram_offset(self, bot_profile, offset):
+        assert bot_profile == "default"
+        self.saved_offsets.append(offset)
+        self.offset = offset
 
 
 def test_bot_api_client_get_updates_uses_token_and_offset():
@@ -120,3 +137,67 @@ def test_poll_once_returns_same_offset_when_no_updates(tmp_path):
     client = TelegramBotApiClient(token="secret-token", http_client=http)
 
     assert poll_once(client, storage_dir=tmp_path, offset=10) == 10
+
+
+def test_polling_loop_loads_and_persists_offsets_between_iterations(tmp_path):
+    http = FakeHttpClient()
+    http.responses.append(
+        {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 42,
+                    "message": {
+                        "chat": {"id": 555},
+                        "from": {"id": 111},
+                        "text": "вес 84.2 кг",
+                    },
+                }
+            ],
+        }
+    )
+    http.responses.append({"ok": True, "result": []})
+    state = FakeGatewayStateStore(offset=41)
+    client = TelegramBotApiClient(token="secret-token", http_client=http)
+
+    asyncio.run(
+        run_polling_loop(
+            client,
+            storage_dir=tmp_path,
+            gateway_state=state,
+            bot_profile="default",
+            timeout=0,
+            max_iterations=2,
+            model_runtime=FakeModelRuntime(),
+        )
+    )
+
+    assert http.calls[0] == (
+        "https://api.telegram.org/botsecret-token/getUpdates",
+        {"timeout": 0, "offset": 41},
+    )
+    assert http.calls[2] == (
+        "https://api.telegram.org/botsecret-token/getUpdates",
+        {"timeout": 0, "offset": 43},
+    )
+    assert state.saved_offsets == [43]
+
+
+def test_polling_loop_leaves_offset_unchanged_when_no_updates(tmp_path):
+    http = FakeHttpClient()
+    http.responses.append({"ok": True, "result": []})
+    state = FakeGatewayStateStore(offset=10)
+    client = TelegramBotApiClient(token="secret-token", http_client=http)
+
+    asyncio.run(
+        run_polling_loop(
+            client,
+            storage_dir=tmp_path,
+            gateway_state=state,
+            bot_profile="default",
+            timeout=0,
+            max_iterations=1,
+        )
+    )
+
+    assert state.saved_offsets == []

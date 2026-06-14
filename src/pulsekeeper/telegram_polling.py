@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 from pulsekeeper.agent_runtime import ModelRuntime
 from pulsekeeper.telegram_transport import handle_telegram_update
@@ -11,6 +15,31 @@ class TelegramHttpClient(Protocol):
     def get_json(self, url: str, params: dict[str, Any]) -> dict[str, Any]: ...
 
     def post_json(self, url: str, payload: dict[str, Any]) -> dict[str, Any]: ...
+
+
+class TelegramOffsetStore(Protocol):
+    async def get_telegram_offset(self, bot_profile: str) -> int | None: ...
+
+    async def set_telegram_offset(self, bot_profile: str, offset: int) -> None: ...
+
+
+class UrlLibTelegramHttpClient:
+    def get_json(self, url: str, params: dict[str, Any]) -> dict[str, Any]:
+        query = urlencode(params)
+        request_url = f"{url}?{query}" if query else url
+        with urlopen(request_url) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def post_json(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
+        body = json.dumps(payload).encode("utf-8")
+        request = Request(
+            url,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(request) as response:
+            return json.loads(response.read().decode("utf-8"))
 
 
 class TelegramBotApiClient:
@@ -54,3 +83,33 @@ def poll_once(
         if isinstance(update_id, int):
             next_offset = update_id + 1
     return next_offset
+
+
+async def run_polling_loop(
+    client: TelegramBotApiClient,
+    *,
+    storage_dir: Path,
+    gateway_state: TelegramOffsetStore,
+    bot_profile: str = "default",
+    timeout: int = 30,
+    model_runtime: ModelRuntime | None = None,
+    max_iterations: int | None = None,
+    idle_sleep_seconds: float = 0.0,
+) -> None:
+    """Run Telegram long polling, persisting offsets after handled updates."""
+    offset = await gateway_state.get_telegram_offset(bot_profile)
+    iterations = 0
+    while max_iterations is None or iterations < max_iterations:
+        next_offset = poll_once(
+            client,
+            storage_dir=storage_dir,
+            offset=offset,
+            timeout=timeout,
+            model_runtime=model_runtime,
+        )
+        if next_offset != offset and next_offset is not None:
+            await gateway_state.set_telegram_offset(bot_profile, next_offset)
+            offset = next_offset
+        iterations += 1
+        if idle_sleep_seconds:
+            await asyncio.sleep(idle_sleep_seconds)
