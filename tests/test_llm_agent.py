@@ -236,6 +236,91 @@ def test_function_model_can_get_health_summary_from_store(tmp_path):
     run(scenario())
 
 
+def test_weekly_summary_writes_durable_patterns_to_summary_memory(tmp_path):
+    async def scenario() -> None:
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            user_id = await create_user(db)
+            health_entries = HealthEntryStore(db)
+            summary_memory = SummaryMemoryStore(db)
+            for logged_at, value in (
+                (datetime(2026, 6, 8, 7, 0, tzinfo=UTC), 84.2),
+                (datetime(2026, 6, 10, 7, 0, tzinfo=UTC), 83.4),
+                (datetime(2026, 6, 14, 7, 0, tzinfo=UTC), 82.6),
+            ):
+                await health_entries.append(
+                    user_id,
+                    LogHealthEntryArgs(
+                        kind="weight",
+                        note=f"{value} kg",
+                        logged_at=logged_at,
+                        value=value,
+                        unit="kg",
+                    ).to_draft(source="telegram"),
+                )
+            fixed_now = datetime(2026, 6, 14, 18, 0, tzinfo=UTC)
+            deps = AgentDeps(
+                user_id=user_id,
+                health_entries=health_entries,
+                now=fixed_now,
+                stores=AgentStores(
+                    health_entries=health_entries,
+                    summary_memory=summary_memory,
+                ),
+            )
+            context = MessageContext(
+                user_id=user_id,
+                chat_id=123,
+                text="summarize this week",
+                attachments=[],
+                now=fixed_now,
+                timezone="UTC",
+                message_id=456,
+                source="telegram",
+            )
+            calls = 0
+            tool_result_payload: dict[str, Any] | None = None
+
+            def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                nonlocal calls, tool_result_payload
+                calls += 1
+                if calls == 1:
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "get_health_summary",
+                                {"period": "week"},
+                                tool_call_id="call-weekly-summary",
+                            )
+                        ]
+                    )
+                tool_result_payload = messages[-1].parts[0].content
+                return ModelResponse(parts=[TextPart("Weekly summary ready.")])
+
+            agent = build_agent(
+                LLMConfig(auth_mode="test", base_url=None, model="function"),
+                policy_prompt=DEFAULT_POLICY_PROMPT,
+                model=FunctionModel(model, model_name="weekly-summary-memory-test"),
+            )
+
+            reply = await run_turn(agent, context, deps)
+            matches = await summary_memory.search(user_id, "diagnosis")
+
+            assert reply.text == "Weekly summary ready."
+            assert tool_result_payload is not None
+            assert tool_result_payload["data"]["summary_memory_saved"] == 2
+            assert len(matches) == 1
+            assert matches[0].kind == "weekly_pattern"
+            assert matches[0].period_start.isoformat() == "2026-06-08"
+            assert matches[0].period_end.isoformat() == "2026-06-14"
+            assert "Notable weight change: 1.6 kg over 6 days" in matches[0].text
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
 def test_function_model_can_correct_and_delete_last_health_entry(tmp_path):
     async def scenario() -> None:
         db = Database(tmp_path / "state.db")

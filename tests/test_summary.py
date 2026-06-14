@@ -162,3 +162,33 @@ def test_summary_prose_prompt_wraps_structured_data_with_health_safety_bounds():
         in prompt
     )
     assert "Return prose only; do not include raw JSON." in prompt
+
+
+def test_summary_detects_logging_streaks_and_notable_weight_changes():
+    entries = [
+        HealthEntry(
+            kind="weight",
+            note="вес 84.2 кг",
+            value=84.2,
+            unit="kg",
+            logged_at=date(2026, 6, 10),
+        ),
+        HealthEntry(kind="food", note="ужин", logged_at=date(2026, 6, 10)),
+        HealthEntry(kind="sleep", note="сон 7 часов", logged_at=date(2026, 6, 11)),
+        HealthEntry(kind="workout", note="зал", logged_at=date(2026, 6, 12)),
+        HealthEntry(
+            kind="weight",
+            note="вес 82.6 кг",
+            value=82.6,
+            unit="kg",
+            logged_at=date(2026, 6, 12),
+        ),
+    ]
+
+    summary = summarize_entries(entries, start=date(2026, 6, 10), end=date(2026, 6, 12))
+
+    assert "Logged entries on 3 consecutive days." in summary.patterns
+    assert (
+        "Notable weight change: 1.6 kg over 2 days; "
+        "review context rather than treating it as a diagnosis."
+    ) in summary.patterns

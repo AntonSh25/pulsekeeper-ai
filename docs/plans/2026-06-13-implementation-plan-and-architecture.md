@@ -462,7 +462,7 @@ FTS5 по summary text.
 - ~~Aiogram Telegram gateway skeleton with owner allowlist/private-chat guard.~~
 - ~~Telegram slash commands: `/start`, `/help`, `/summary`, `/today`, `/week`, `/undo`, `/profile`, `/reminders` placeholder.~~
 - ~~Config and doctor diagnostics, including redacted provider reachability check.~~
-- ~~Quality gate: `uv run pytest -q` passes — 118 tests.~~
+- ~~Quality gate: `uv run pytest -q` passes — 121 tests.~~
 - ~~Quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -724,16 +724,16 @@ FTS5 по summary text.
    - ~~notes~~.
 5. Pattern detection:
    - ~~trends~~;
-   - streaks;
-   - notable changes;
+   - ~~streaks~~;
+   - ~~notable changes~~;
    - ~~missing data~~.
-6. Store durable weekly/monthly observations in summary memory.
+6. ~~Store durable weekly/monthly observations in summary memory.~~
 
 ### Acceptance criteria
 
 - ~~daily/weekly summaries work without LLM~~;
-- LLM summary does not diagnose;
-- useful patterns are saved as summary memory only when durable.
+- ~~LLM summary does not diagnose~~;
+- ~~useful patterns are saved as summary memory only when durable~~.
 
 ---
 

@@ -165,6 +165,23 @@ def _detect_patterns(entries: list[HealthEntry], *, start: date, end: date) -> l
     if entries and missing_count:
         day_word = "day" if missing_count == 1 else "days"
         patterns.append(f"No entries for {missing_count} {day_word} in this period.")
+    elif entries and len(period_dates) >= 2:
+        patterns.append(f"Logged entries on {len(period_dates)} consecutive days.")
+
+    if len(weights) >= 2:
+        first_weight = weights[0].value
+        last_weight = weights[-1].value
+        if first_weight is None or last_weight is None:
+            return patterns
+        first_date = _entry_date(weights[0])
+        last_date = _entry_date(weights[-1])
+        change = last_weight - first_weight
+        days = max((last_date - first_date).days, 1)
+        if abs(change) >= 1.5:
+            patterns.append(
+                f"Notable weight change: {abs(change):g} kg over {days} days; "
+                "review context rather than treating it as a diagnosis."
+            )
     return patterns
 
 

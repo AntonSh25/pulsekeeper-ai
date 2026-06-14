@@ -10,7 +10,7 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart
 from pydantic_ai.models import Model
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel as OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import UsageLimits
 
@@ -23,7 +23,7 @@ from pulsekeeper.domain import (
 )
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.memory import ConversationStateStore, ProfileStore, SummaryMemoryStore
-from pulsekeeper.summary import build_summary_prose_prompt, summarize_entries
+from pulsekeeper.summary import HealthSummary, build_summary_prose_prompt, summarize_entries
 
 AuthMode = Literal["api_key", "subscription", "test"]
 SUBSCRIPTION_PROVIDER_API_KEY = "pulsekeeper-hermes-proxy"
@@ -272,6 +272,11 @@ async def get_health_summary(ctx: RunContext[AgentDeps], args: HealthSummaryArgs
         start=start_dt.date(),
         end=_summary_display_end_date(start_dt, end_dt),
     )
+    summary_memory_saved = await _write_durable_summary_patterns(
+        ctx.deps,
+        args.period,
+        summary,
+    )
     return ToolResult(
         ok=True,
         summary=f"Found {len(entries)} health entries.",
@@ -283,6 +288,7 @@ async def get_health_summary(ctx: RunContext[AgentDeps], args: HealthSummaryArgs
             "counts_by_kind": summary.counts_by_kind,
             "blocks": summary.blocks,
             "patterns": summary.patterns,
+            "summary_memory_saved": summary_memory_saved,
             "prose_prompt": build_summary_prose_prompt(summary),
         },
     ).model_dump()
@@ -432,6 +438,36 @@ async def write_summary_memory(
         summary="Saved summary memory.",
         data={"status": "saved", "kind": args.kind},
     ).model_dump()
+
+
+async def _write_durable_summary_patterns(
+    deps: AgentDeps,
+    period: SummaryPeriod,
+    summary: HealthSummary,
+) -> int:
+    """Persist durable weekly/monthly summary observations when memory is configured."""
+    if period not in {"week", "month"}:
+        return 0
+    if deps.stores is None or deps.stores.summary_memory is None:
+        return 0
+
+    durable_patterns = [
+        pattern
+        for pattern in summary.patterns
+        if pattern.startswith("Weight ") or pattern.startswith("Notable weight change:")
+    ]
+    for pattern in durable_patterns:
+        await deps.stores.summary_memory.write(
+            deps.user_id,
+            SummaryMemoryDraft(
+                period_start=summary.period_start,
+                period_end=summary.period_end,
+                kind=f"{period}ly_pattern",
+                text=pattern,
+                metadata={"source": "get_health_summary", "period": period},
+            ),
+        )
+    return len(durable_patterns)
 
 
 def _require_profile_store(deps: AgentDeps) -> ProfileStore:
