@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlencode
@@ -95,21 +96,29 @@ async def run_polling_loop(
     model_runtime: ModelRuntime | None = None,
     max_iterations: int | None = None,
     idle_sleep_seconds: float = 0.0,
+    error_backoff_seconds: float = 5.0,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> None:
     """Run Telegram long polling, persisting offsets after handled updates."""
     offset = await gateway_state.get_telegram_offset(bot_profile)
     iterations = 0
     while max_iterations is None or iterations < max_iterations:
-        next_offset = poll_once(
-            client,
-            storage_dir=storage_dir,
-            offset=offset,
-            timeout=timeout,
-            model_runtime=model_runtime,
-        )
+        try:
+            next_offset = poll_once(
+                client,
+                storage_dir=storage_dir,
+                offset=offset,
+                timeout=timeout,
+                model_runtime=model_runtime,
+            )
+        except Exception:
+            iterations += 1
+            if error_backoff_seconds:
+                await sleep(error_backoff_seconds)
+            continue
         if next_offset != offset and next_offset is not None:
             await gateway_state.set_telegram_offset(bot_profile, next_offset)
             offset = next_offset
         iterations += 1
         if idle_sleep_seconds:
-            await asyncio.sleep(idle_sleep_seconds)
+            await sleep(idle_sleep_seconds)

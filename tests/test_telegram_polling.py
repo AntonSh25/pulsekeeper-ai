@@ -11,7 +11,10 @@ class FakeHttpClient:
 
     def get_json(self, url, params):
         self.calls.append((url, params))
-        return self.responses.pop(0)
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     def post_json(self, url, payload):
         self.calls.append((url, payload))
@@ -201,3 +204,55 @@ def test_polling_loop_leaves_offset_unchanged_when_no_updates(tmp_path):
     )
 
     assert state.saved_offsets == []
+
+
+def test_polling_loop_backs_off_and_recovers_after_transient_network_error(tmp_path):
+    http = FakeHttpClient()
+    http.responses.append(RuntimeError("temporary network failure"))
+    http.responses.append(
+        {
+            "ok": True,
+            "result": [
+                {
+                    "update_id": 42,
+                    "message": {
+                        "chat": {"id": 555},
+                        "from": {"id": 111},
+                        "text": "вес 84.2 кг",
+                    },
+                }
+            ],
+        }
+    )
+    sleeps = []
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    state = FakeGatewayStateStore(offset=41)
+    client = TelegramBotApiClient(token="secret-token", http_client=http)
+
+    asyncio.run(
+        run_polling_loop(
+            client,
+            storage_dir=tmp_path,
+            gateway_state=state,
+            bot_profile="default",
+            timeout=0,
+            max_iterations=2,
+            model_runtime=FakeModelRuntime(),
+            error_backoff_seconds=3.5,
+            sleep=fake_sleep,
+        )
+    )
+
+    assert sleeps == [3.5]
+    assert state.saved_offsets == [43]
+    assert http.calls[0] == (
+        "https://api.telegram.org/botsecret-token/getUpdates",
+        {"timeout": 0, "offset": 41},
+    )
+    assert http.calls[1] == (
+        "https://api.telegram.org/botsecret-token/getUpdates",
+        {"timeout": 0, "offset": 41},
+    )

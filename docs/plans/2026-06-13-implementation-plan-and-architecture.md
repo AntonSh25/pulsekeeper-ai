@@ -670,16 +670,16 @@ FTS5 по summary text.
    - ~~send replies~~;
    - ~~persist offset~~;
    - graceful shutdown.
-4. Add retry/backoff.
+4. ~~Add retry/backoff.~~
 5. Add safe logs.
-6. Add integration-ish tests with mocked HTTP.
+6. ~~Add integration-ish tests with mocked HTTP.~~
 
 ### Acceptance criteria
 
 - bot can run locally with token;
 - restart does not reprocess old updates;
 - token is never logged;
-- network errors backoff and recover.
+- ~~network errors backoff and recover.~~
 
 ---
 
