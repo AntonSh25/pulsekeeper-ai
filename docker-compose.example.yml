@@ -1,0 +1,28 @@
+services:
+  pulsekeeper-ai:
+    build: .
+    image: pulsekeeper-ai:local
+    restart: unless-stopped
+    # Effective command: pulsekeeper telegram-run --config /config/config.toml
+    command: ["telegram-run", "--config", "/config/config.toml"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PULSEKEEPER_CONFIG: /config/config.toml
+      PULSEKEEPER_STORAGE_DIR: /data
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      VISION_API_KEY: ${VISION_API_KEY:-}
+    volumes:
+      - pulsekeeper-data:/data
+      - ./config.toml.example:/config/config.toml:ro
+    healthcheck:
+      test: ["CMD", "pulsekeeper", "doctor", "--config", "/config/config.toml"]
+      interval: 5m
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  pulsekeeper-data:

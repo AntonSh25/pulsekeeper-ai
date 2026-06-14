@@ -1,7 +1,7 @@
 # PulseKeeper: архитектура и пошаговый план реализации
 
 Дата: 2026-06-13  
-Статус: рабочий implementation roadmap, обновлён после инкремента `be76a35`
+Статус: рабочий implementation roadmap, обновлён после инкремента `52508e3`
 Репозиторий: `AntonSh25/pulsekeeper-ai`  
 Ветка: `feat/mvp-summaries`
 
@@ -870,10 +870,10 @@ Do not claim precise calories from images.
 
 ### Tasks
 
-1. `.env.example`.
-2. Dockerfile.
-3. docker-compose example.
-4. Persistent volume docs.
+1. ~~`.env.example`.~~
+2. ~~Dockerfile.~~
+3. ~~docker-compose example.~~
+4. ~~Persistent volume docs.~~
 5. systemd example.
 6. GitHub Actions:
    - tests;
