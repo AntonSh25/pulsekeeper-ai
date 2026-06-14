@@ -58,3 +58,20 @@ def test_systemd_example_runs_telegram_loop_with_externalized_config_and_secrets
     assert "pulsekeeper.service.example" in deployment_doc
     assert "/etc/pulsekeeper/pulsekeeper.env" in deployment_doc
     assert "systemctl enable --now pulsekeeper" in deployment_doc
+
+
+def test_github_actions_ci_runs_quality_build_and_docker_publish_without_plain_secrets():
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "uv run ruff check ." in workflow
+    assert "uv run pytest -q" in workflow
+    assert "uv build" in workflow
+    assert "docker/build-push-action" in workflow
+    expected_tag_push_guard = (
+        "push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}"
+    )
+    assert expected_tag_push_guard in workflow
+    assert "ghcr.io/${{ github.repository }}" in workflow
+    assert "GITHUB_TOKEN" in workflow
+    assert "TELEGRAM_BOT_TOKEN" not in workflow
+    assert "OPENAI_API_KEY" not in workflow

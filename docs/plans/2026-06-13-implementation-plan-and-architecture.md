@@ -465,7 +465,7 @@ FTS5 по summary text.
 - ~~Apple Health XML import slice for weight, sleep, workouts, and steps, with idempotent external-ID tracking and CLI command.~~
 - ~~Telegram photo metadata handling and local media storage seam for food-image logging.~~
 - ~~Optional BYOK vision provider config/doctor seam for future food-photo descriptions.~~
-- ~~Quality gate: `uv run pytest -q` passes — 138 tests.~~
+- ~~Quality gate: `uv run pytest -q` passes — 142 tests.~~
 - ~~Quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -875,11 +875,11 @@ Do not claim precise calories from images.
 3. ~~docker-compose example.~~
 4. ~~Persistent volume docs.~~
 5. ~~systemd example.~~
-6. GitHub Actions:
+6. ~~GitHub Actions:
    - tests;
    - ruff;
    - build;
-   - Docker publish.
+   - Docker publish.~~
 7. Later PyPI package for `pipx install pulsekeeper-ai`.
 
 ---
