@@ -22,6 +22,7 @@ from pulsekeeper.domain import (
     HealthEntryPatch,
     SummaryMemoryDraft,
 )
+from pulsekeeper.protocols import render_protocol_prompt
 from pulsekeeper.storage.health_entries import HealthEntryStore
 from pulsekeeper.storage.memory import ConversationStateStore, ProfileStore, SummaryMemoryStore
 from pulsekeeper.storage.reminders import Reminder, ReminderStore
@@ -33,7 +34,7 @@ SummaryPeriod = Literal["day", "week", "month", "custom"]
 ToolOutcome = Literal["success", "failed", "denied"]
 
 
-DEFAULT_POLICY_PROMPT = """
+DEFAULT_POLICY_PROMPT = f"""
 You are PulseKeeper, a private health journaling assistant.
 Safety and scope:
 - Do not diagnose medical conditions.
@@ -48,6 +49,8 @@ Safety and scope:
 - Provider boundary: you are not a clinician or a replacement for a licensed healthcare provider.
 Use tools to record and summarize user-provided facts. Do not invent precise nutrition
 or medical facts.
+
+{render_protocol_prompt()}
 """.strip()
 
 

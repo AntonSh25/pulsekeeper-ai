@@ -771,35 +771,35 @@ FTS5 по summary text.
 
 ### Protocols
 
-1. Weight tracking protocol:
+1. ~~Weight tracking protocol:
    - log weight;
    - notice trend;
-   - avoid overreacting to daily noise.
-2. Sleep check-in protocol:
+   - avoid overreacting to daily noise.~~
+2. ~~Sleep check-in protocol:
    - capture duration/quality;
    - connect patterns cautiously;
-   - no diagnosis.
-3. Workout logging protocol:
+   - no diagnosis.~~
+3. ~~Workout logging protocol:
    - capture type/duration/intensity;
-   - connect to recovery/sleep/weight when enough data exists.
-4. Food logging protocol:
+   - connect to recovery/sleep/weight when enough data exists.~~
+4. ~~Food logging protocol:
    - capture meal context;
-   - avoid fake calorie precision unless user explicitly tracks calories/macros.
-5. Weekly review protocol:
+   - avoid fake calorie precision unless user explicitly tracks calories/macros.~~
+5. ~~Weekly review protocol:
    - summarize changes;
    - identify missing data;
-   - propose one small next action.
-6. Medication/symptom caution protocol:
+   - propose one small next action.~~
+6. ~~Medication/symptom caution protocol:
    - log facts;
    - flag urgent language carefully;
    - advise professional care when appropriate;
-   - do not give treatment instructions.
+   - do not give treatment instructions.~~
 
 ### Acceptance criteria
 
-- prompt/tool descriptions encode these protocols;
-- safety tests cover symptom/medication cases;
-- summaries stay conservative.
+- ~~prompt/tool descriptions encode these protocols;~~
+- ~~safety tests cover symptom/medication cases;~~
+- ~~summaries stay conservative.~~
 
 ---
 

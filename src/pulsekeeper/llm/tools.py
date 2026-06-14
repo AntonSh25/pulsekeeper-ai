@@ -91,6 +91,12 @@ def build_default_tool_registry() -> ToolRegistry:
                 safety_notes=(
                     "Record facts only; do not diagnose or infer medical conclusions.",
                     "Do not invent precise nutrition, medication, or symptom facts.",
+                    "For weight, avoid overreacting to daily weight noise.",
+                    "For food, avoid fake calorie precision unless explicitly tracked.",
+                    (
+                        "For symptom or medication facts, recommend professional care for "
+                        "urgent language and do not give treatment instructions."
+                    ),
                 ),
             ),
             ToolSpec(
@@ -105,6 +111,10 @@ def build_default_tool_registry() -> ToolRegistry:
                 safety_notes=(
                     "Summarize patterns conservatively; do not diagnose.",
                     "Use deterministic stored data before optional prose generation.",
+                    (
+                        "For weekly reviews, identify missing data and suggest at most "
+                        "one small next action."
+                    ),
                 ),
             ),
             ToolSpec(
@@ -194,6 +204,10 @@ def build_default_tool_registry() -> ToolRegistry:
                 safety_notes=(
                     "Use the user's configured timezone unless they explicitly provide another.",
                     "Ask a clarifying question when reminder timing is ambiguous.",
+                    (
+                        "Use reminders for lightweight health check-ins, not medical treatment "
+                        "instructions."
+                    ),
                 ),
             ),
             ToolSpec(
