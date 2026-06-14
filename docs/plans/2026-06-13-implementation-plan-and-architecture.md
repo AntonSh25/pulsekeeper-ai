@@ -856,8 +856,8 @@ If API/export is practical:
 1. ~~Telegram photo handling.~~
 2. ~~Local media storage.~~
 3. Optional BYOK vision provider.
-4. Image-derived entry tool path.
-5. Ask clarification if needed.
+4. ~~Image-derived entry tool path.~~
+5. ~~Ask clarification if needed.~~
 
 ### Guardrail
 

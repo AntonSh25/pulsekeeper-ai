@@ -143,6 +143,108 @@ def test_function_model_can_log_health_entry_through_store(tmp_path):
     run(scenario())
 
 
+def test_function_model_gets_photo_context_and_can_log_food_image_entry(tmp_path):
+    async def scenario() -> None:
+        from pulsekeeper.storage.media import MediaAttachment
+
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            user_id = await create_user(db)
+            store = HealthEntryStore(db)
+            fixed_now = datetime(2026, 6, 14, 12, 0, tzinfo=UTC)
+            attachment_path = tmp_path / "media" / "user-1" / "2026-06-14" / "photo-unique.jpg"
+            attachment_path.parent.mkdir(parents=True)
+            attachment_path.write_bytes(b"fake image")
+            deps = AgentDeps(user_id=user_id, health_entries=store, now=fixed_now)
+            context = MessageContext(
+                user_id=user_id,
+                chat_id=123,
+                text="lunch plate",
+                attachments=[
+                    MediaAttachment(
+                        kind="photo",
+                        provider="telegram",
+                        path=attachment_path,
+                        content_type="image/jpeg",
+                        file_id="file-id-secretish",
+                        file_unique_id="photo-unique",
+                        created_at=fixed_now,
+                        width=1280,
+                        height=720,
+                        file_size=4096,
+                    )
+                ],
+                now=fixed_now,
+                timezone="UTC",
+                message_id=456,
+                source="telegram",
+            )
+            calls = 0
+
+            def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                nonlocal calls
+                calls += 1
+                rendered_messages = str(messages)
+                assert "Photo attachment" in rendered_messages
+                assert "photo-unique" in rendered_messages
+                assert "1280x720" in rendered_messages
+                assert "Do not estimate precise calories" in rendered_messages
+                assert any(tool.name == "log_health_entry" for tool in info.function_tools)
+                assert any(tool.name == "ask_clarifying_question" for tool in info.function_tools)
+                if calls == 1:
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "log_health_entry",
+                                {
+                                    "kind": "food",
+                                    "note": "lunch plate from Telegram photo",
+                                    "metadata": {
+                                        "media_source": "telegram_photo",
+                                        "file_unique_id": "photo-unique",
+                                        "image_description_source": "caption",
+                                    },
+                                },
+                                tool_call_id="call-photo-log-1",
+                            )
+                        ]
+                    )
+                return ModelResponse(
+                    parts=[TextPart("Logged the lunch photo without estimating calories.")]
+                )
+
+            agent = build_agent(
+                LLMConfig(auth_mode="test", base_url=None, model="function"),
+                policy_prompt=DEFAULT_POLICY_PROMPT,
+                model=FunctionModel(model, model_name="photo-food-test"),
+            )
+
+            reply = await run_turn(agent, context, deps)
+            stored = await store.list(
+                user_id,
+                start=datetime(2026, 6, 14, 0, 0, tzinfo=UTC),
+                end=datetime(2026, 6, 15, 0, 0, tzinfo=UTC),
+            )
+
+            assert reply.text == "Logged the lunch photo without estimating calories."
+            assert reply.tool_trace == [
+                {"tool_name": "log_health_entry", "outcome": "success"}
+            ]
+            assert len(stored) == 1
+            assert stored[0].kind == "food"
+            assert stored[0].note == "lunch plate from Telegram photo"
+            assert stored[0].metadata == {
+                "media_source": "telegram_photo",
+                "file_unique_id": "photo-unique",
+                "image_description_source": "caption",
+            }
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
 def test_function_model_can_get_health_summary_from_store(tmp_path):
     async def scenario() -> None:
         db = Database(tmp_path / "state.db")

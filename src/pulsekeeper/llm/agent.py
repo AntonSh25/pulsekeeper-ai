@@ -635,6 +635,40 @@ def build_agent(
     return PulseKeeperAgent(agent=agent, config=config)
 
 
+def _render_turn_prompt(context: MessageContext) -> str:
+    """Render user text plus transport-neutral attachment context for the model."""
+    text = context.text.strip()
+    if not context.attachments:
+        return text
+
+    lines = [text, "", "Attachments:"]
+    for index, attachment in enumerate(context.attachments, start=1):
+        kind = getattr(attachment, "kind", "photo")
+        provider = getattr(attachment, "provider", "telegram")
+        unique_id = getattr(attachment, "file_unique_id", "unknown")
+        content_type = getattr(attachment, "content_type", "unknown")
+        width = getattr(attachment, "width", None)
+        height = getattr(attachment, "height", None)
+        dimensions = f"{width}x{height}" if width is not None and height is not None else "unknown"
+        file_size = getattr(attachment, "file_size", None)
+        path = getattr(attachment, "path", None)
+        location = f" local_path={path}" if path is not None else ""
+        lines.append(
+            f"{index}. Photo attachment from {provider}: kind={kind} "
+            f"file_unique_id={unique_id} content_type={content_type} dimensions={dimensions} "
+            f"file_size={file_size}{location}"
+        )
+    lines.extend(
+        [
+            "",
+            "For food photos: use caption text and available image context only. "
+            "Do not estimate precise calories or nutrition from an image. "
+            "If the meal details are unclear, call ask_clarifying_question instead of logging.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 async def run_turn(
     agent: PulseKeeperAgent | Agent[AgentDeps, str],
     context: MessageContext,
@@ -657,7 +691,7 @@ async def run_turn(
 
     try:
         result = await pydantic_agent.run(
-            context.text,
+            _render_turn_prompt(context),
             deps=effective_deps,
             usage_limits=UsageLimits(
                 request_limit=max_tool_iterations + 1,
