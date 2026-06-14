@@ -53,3 +53,25 @@ def test_architecture_docs_explain_public_mvp_components_and_boundaries():
     assert "What stays local" in architecture
     assert "What can leave the host" in architecture
     assert "does not diagnose" in architecture
+
+
+def test_readme_has_three_minute_quickstart_and_demo_artifact_references():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    screenshots = (ROOT / "docs" / "screenshots.md").read_text(encoding="utf-8")
+
+    assert "## Quickstart: under 3 minutes" in readme
+    assert "uv sync --extra dev" in readme
+    assert "cp .env.example .env" in readme
+    assert "uv run pulsekeeper doctor" in readme
+    assert "uv run pulsekeeper telegram-run" in readme
+    assert "TELEGRAM_BOT_TOKEN" in readme
+    assert "PULSEKEEPER_OPENAI_API_KEY" in readme
+    assert "Do not paste real tokens" in readme
+    assert "~/.pulsekeeper/state.db" in readme
+    assert "docs/screenshots.md" in readme
+
+    assert "# Screenshots and GIFs" in screenshots
+    assert "assets/demo-telegram-capture.gif" in screenshots
+    assert "assets/demo-doctor.png" in screenshots
+    assert "placeholder" in screenshots.lower()
+    assert "Do not use real health data" in screenshots

@@ -71,6 +71,35 @@ The database layer should expose typed stores for health entries, profile memory
 - `write_summary_memory`
 - `schedule_reminder`
 
+## Quickstart: under 3 minutes
+
+This path starts PulseKeeper locally with explicit BYOK credentials and local SQLite storage.
+Do not paste real tokens or API keys into issues, logs, screenshots, or commits.
+
+```bash
+# 1. Install dependencies
+uv sync --extra dev
+
+# 2. Create local config/secrets files
+mkdir -p ~/.pulsekeeper
+cp config.toml.example ~/.pulsekeeper/config.toml
+cp .env.example ~/.pulsekeeper/.env  # same as: cp .env.example .env for a local project sandbox
+
+# 3. Edit ~/.pulsekeeper/.env with your own values
+# TELEGRAM_BOT_TOKEN=123456:example-from-botfather
+# OPENAI_API_KEY=sk-example
+# Optional: set llm.api_key_env = "PULSEKEEPER_OPENAI_API_KEY" in config.toml
+# and use PULSEKEEPER_OPENAI_API_KEY if you prefer a PulseKeeper-specific env var.
+
+# 4. Verify local setup without leaking secrets
+uv run pulsekeeper doctor --config ~/.pulsekeeper/config.toml
+
+# 5. Run the Telegram long-polling bot
+uv run pulsekeeper telegram-run --config ~/.pulsekeeper/config.toml
+```
+
+Runtime data lives under `~/.pulsekeeper/state.db` by default, with media, exports, and redacted logs alongside it. See `docs/screenshots.md` for sanitized demo screenshot/GIF placeholders and capture rules.
+
 ## Development
 
 ```bash

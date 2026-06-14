@@ -899,8 +899,8 @@ Do not claim precise calories from images.
    - LLM providers;
    - reminders;
    - integrations.~~
-6. Add screenshots/GIF.
-7. Add quickstart that works in under 3 minutes.
+6. ~~Add screenshots/GIF.~~
+7. ~~Add quickstart that works in under 3 minutes.~~
 
 ---
 
