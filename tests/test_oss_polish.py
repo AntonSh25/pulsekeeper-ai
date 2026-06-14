@@ -38,3 +38,18 @@ def test_project_has_open_source_contribution_metadata_and_templates():
     assert "Privacy and secret safety" in pr_template
     assert "Health safety" in pr_template
     assert "uv run pytest -q" in pr_template
+
+
+def test_architecture_docs_explain_public_mvp_components_and_boundaries():
+    architecture = (ROOT / "docs" / "architecture.md").read_text(encoding="utf-8")
+
+    assert "Telegram adapters" in architecture
+    assert "Agent tools" in architecture
+    assert "SQLite storage" in architecture
+    assert "LLM providers" in architecture
+    assert "Reminders" in architecture
+    assert "Imports and media integrations" in architecture
+    assert "Data and secret boundaries" in architecture
+    assert "What stays local" in architecture
+    assert "What can leave the host" in architecture
+    assert "does not diagnose" in architecture

@@ -892,13 +892,13 @@ Do not claim precise calories from images.
 2. ~~Add `CONTRIBUTING.md`.~~
 3. ~~Add issue templates.~~
 4. ~~Add PR template.~~
-5. Add architecture docs:
+5. ~~Add architecture docs:
    - adapters;
    - agent tools;
    - storage;
    - LLM providers;
    - reminders;
-   - integrations.
+   - integrations.~~
 6. Add screenshots/GIF.
 7. Add quickstart that works in under 3 minutes.
 
