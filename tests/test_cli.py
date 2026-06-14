@@ -1,5 +1,6 @@
+import asyncio
 import json
-from datetime import date
+from datetime import UTC, date, datetime
 from urllib.error import URLError
 
 from typer.testing import CliRunner
@@ -156,6 +157,58 @@ def test_telegram_poll_once_command_uses_fixture_without_token_or_parser(tmp_pat
     assert "Нужен BYOK LLM provider" in result.stdout
     log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
     assert log.read_all() == []
+
+
+def test_import_apple_health_command_loads_xml_into_sqlite(tmp_path):
+    from pulsekeeper.storage.health_entries import HealthEntryStore
+    from pulsekeeper.storage.sqlite import Database
+
+    storage_dir = tmp_path / "pulsekeeper"
+    export_path = tmp_path / "apple_export.xml"
+    export_path.write_text(
+        """<?xml version='1.0' encoding='UTF-8'?>
+<HealthData>
+  <Record
+    type="HKQuantityTypeIdentifierBodyMass"
+    sourceName="Health"
+    unit="kg"
+    startDate="2026-06-01 07:00:00 +0000"
+    endDate="2026-06-01 07:00:00 +0000"
+    value="84.2"/>
+</HealthData>
+""",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "import-apple-health",
+            str(export_path),
+            "--storage-dir",
+            str(storage_dir),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Apple Health import complete: imported=1 skipped=0 unsupported=0" in result.stdout
+
+    async def load_entries():
+        db = Database(storage_dir / "state.db")
+        await db.initialize()
+        try:
+            return await HealthEntryStore(db).list(
+                1,
+                start=datetime(2026, 6, 1, tzinfo=UTC),
+                end=datetime(2026, 6, 2, tzinfo=UTC),
+            )
+        finally:
+            await db.close()
+
+    entries = asyncio.run(load_entries())
+    assert len(entries) == 1
+    assert entries[0].kind == "weight"
+    assert entries[0].source == "import"
 
 
 def test_config_command_prints_redacted_setup_summary(tmp_path):

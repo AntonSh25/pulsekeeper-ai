@@ -462,7 +462,8 @@ FTS5 по summary text.
 - ~~Aiogram Telegram gateway skeleton with owner allowlist/private-chat guard.~~
 - ~~Telegram slash commands: `/start`, `/help`, `/summary`, `/today`, `/week`, `/undo`, `/profile`, `/reminders` placeholder.~~
 - ~~Config and doctor diagnostics, including redacted provider reachability check.~~
-- ~~Quality gate: `uv run pytest -q` passes — 121 tests.~~
+- ~~Apple Health XML import slice for weight, sleep, workouts, and steps, with idempotent external-ID tracking and CLI command.~~
+- ~~Quality gate: `uv run pytest -q` passes — 131 tests.~~
 - ~~Quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -811,10 +812,17 @@ FTS5 по summary text.
 
 Start with XML export:
 
-- weight;
-- sleep;
-- workouts;
-- steps.
+- ~~weight;~~
+- ~~sleep;~~
+- ~~workouts;~~
+- ~~steps.~~
+
+### Tasks
+
+1. ~~Add Apple Health XML importer for supported export records.~~
+2. ~~Persist imported events through `HealthEntryStore` with `source="import"`.~~
+3. ~~Track external IDs in `ImportStore` and skip duplicates on rerun.~~
+4. ~~Expose a local `pulsekeeper import-apple-health` CLI command.~~
 
 ### Whoop
 

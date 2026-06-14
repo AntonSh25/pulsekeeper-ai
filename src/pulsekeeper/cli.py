@@ -15,6 +15,7 @@ import typer
 
 from pulsekeeper.config import ConfigError, load_config, redact_secret
 from pulsekeeper.domain import parse_health_log
+from pulsekeeper.importers.apple_health import import_apple_health_xml
 from pulsekeeper.llm.agent import LLMConfig
 from pulsekeeper.reminder_scheduler import TelegramReminderScheduler, run_scheduler_loop
 from pulsekeeper.storage import JsonlHealthLog
@@ -70,6 +71,33 @@ def summary(
     start = end if period == "day" else end - timedelta(days=6)
     entries = JsonlHealthLog(file).read_all()
     typer.echo(summarize_entries(entries, start=start, end=end).to_markdown())
+
+
+@app.command("import-apple-health")
+def import_apple_health_command(
+    export_xml: Path,
+    storage_dir: Annotated[Path, typer.Option("--storage-dir")] = DEFAULT_STORAGE_DIR,
+    user_id: Annotated[int, typer.Option("--user-id")] = 1,
+) -> None:
+    """Import supported Apple Health XML export records into SQLite."""
+    result = asyncio.run(
+        _import_apple_health_async(export_xml, storage_dir=storage_dir, user_id=user_id)
+    )
+    typer.echo(
+        "Apple Health import complete: "
+        f"imported={result.imported} skipped={result.skipped} unsupported={result.unsupported}"
+    )
+
+
+async def _import_apple_health_async(export_xml: Path, *, storage_dir: Path, user_id: int):
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    database = Database(storage_dir / "state.db")
+    try:
+        await database.initialize()
+        await database.execute("INSERT OR IGNORE INTO users(id) VALUES (?)", (user_id,))
+        return await import_apple_health_xml(database, user_id=user_id, path=export_xml)
+    finally:
+        await database.close()
 
 
 @app.command("config")
