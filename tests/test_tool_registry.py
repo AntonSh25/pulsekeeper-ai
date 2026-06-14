@@ -18,6 +18,10 @@ def test_default_tool_registry_exposes_metadata_for_initial_tools():
         "log_health_entry",
         "get_health_summary",
         "ask_clarifying_question",
+        "set_user_profile_fact",
+        "get_user_profile",
+        "search_health_memory",
+        "write_summary_memory",
     ]
 
     log_spec = registry.get("log_health_entry")
@@ -32,6 +36,12 @@ def test_default_tool_registry_exposes_metadata_for_initial_tools():
 
     clarify_spec = registry.get("ask_clarifying_question")
     assert clarify_spec.permissions == frozenset()
+
+    profile_spec = registry.get("set_user_profile_fact")
+    assert profile_spec.permissions == frozenset({"profile:write"})
+
+    memory_spec = registry.get("search_health_memory")
+    assert memory_spec.permissions == frozenset({"summary_memory:read"})
 
 
 def test_tool_registry_validates_arguments_with_pydantic_schema():
@@ -89,7 +99,11 @@ def test_build_agent_registers_tools_from_default_registry():
     assert seen_tool_names == [
         "ask_clarifying_question",
         "get_health_summary",
+        "get_user_profile",
         "log_health_entry",
+        "search_health_memory",
+        "set_user_profile_fact",
+        "write_summary_memory",
     ]
 
 

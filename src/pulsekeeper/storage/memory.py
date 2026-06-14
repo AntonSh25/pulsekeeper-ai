@@ -52,6 +52,17 @@ class ProfileStore:
             return value
         return None
 
+    async def list_facts(self, user_id: int) -> dict[str, Any]:
+        rows = await self.db.fetchall(
+            """
+            SELECT key, value_json FROM user_profile_facts
+            WHERE user_id = ?
+            ORDER BY key ASC
+            """,
+            (user_id,),
+        )
+        return {row["key"]: _json_loads(row["value_json"]) for row in rows}
+
 
 class PreferenceStore:
     def __init__(self, db: Database) -> None:

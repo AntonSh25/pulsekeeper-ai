@@ -11,11 +11,19 @@ from pydantic_ai import Agent, RunContext
 from pulsekeeper.llm.agent import (
     AgentDeps,
     AskClarifyingQuestionArgs,
+    GetUserProfileArgs,
     HealthSummaryArgs,
     LogHealthEntryArgs,
+    SearchHealthMemoryArgs,
+    SetUserProfileFactArgs,
+    WriteSummaryMemoryArgs,
     ask_clarifying_question,
     get_health_summary,
+    get_user_profile,
     log_health_entry,
+    search_health_memory,
+    set_user_profile_fact,
+    write_summary_memory,
 )
 
 ToolHandler = Callable[[RunContext[AgentDeps], Any], Awaitable[dict[str, Any]]]
@@ -97,6 +105,46 @@ def build_default_tool_registry() -> ToolRegistry:
                 handler=ask_clarifying_question,
                 permissions=frozenset(),
                 safety_notes=("Use when the requested health action is ambiguous.",),
+            ),
+            ToolSpec(
+                name="set_user_profile_fact",
+                description="Remember an explicit stable profile fact provided by the user.",
+                input_model=SetUserProfileFactArgs,
+                output_shape="ToolResult",
+                handler=set_user_profile_fact,
+                permissions=frozenset({"profile:write"}),
+                safety_notes=(
+                    "Only store stable user-provided facts; do not infer sensitive medical facts.",
+                ),
+            ),
+            ToolSpec(
+                name="get_user_profile",
+                description="Return saved user profile facts.",
+                input_model=GetUserProfileArgs,
+                output_shape="ToolResult",
+                handler=get_user_profile,
+                permissions=frozenset({"profile:read"}),
+                safety_notes=("Use profile facts as context, not as medical diagnosis.",),
+            ),
+            ToolSpec(
+                name="search_health_memory",
+                description="Search durable summary memory for prior health observations.",
+                input_model=SearchHealthMemoryArgs,
+                output_shape="ToolResult",
+                handler=search_health_memory,
+                permissions=frozenset({"summary_memory:read"}),
+                safety_notes=("Return stored observations; do not overstate weak patterns.",),
+            ),
+            ToolSpec(
+                name="write_summary_memory",
+                description="Save durable weekly/monthly health observations for future summaries.",
+                input_model=WriteSummaryMemoryArgs,
+                output_shape="ToolResult",
+                handler=write_summary_memory,
+                permissions=frozenset({"summary_memory:write"}),
+                safety_notes=(
+                    "Only save durable observations, not transient daily noise or diagnoses.",
+                ),
             ),
         ]
     )

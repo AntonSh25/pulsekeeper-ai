@@ -15,8 +15,9 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import UsageLimits
 
-from pulsekeeper.domain import HealthEntryDraft, HealthEntryKind
+from pulsekeeper.domain import HealthEntryDraft, HealthEntryKind, SummaryMemoryDraft
 from pulsekeeper.storage.health_entries import HealthEntryStore
+from pulsekeeper.storage.memory import ProfileStore, SummaryMemoryStore
 
 AuthMode = Literal["api_key", "subscription", "test"]
 SUBSCRIPTION_PROVIDER_API_KEY = "pulsekeeper-hermes-proxy"
@@ -89,9 +90,11 @@ class MessageContext:
 
 @dataclass(frozen=True)
 class AgentStores:
-    """Small stores bundle placeholder until the full store registry exists."""
+    """Stores bundle used by typed agent tools."""
 
     health_entries: HealthEntryStore
+    profile: ProfileStore | None = None
+    summary_memory: SummaryMemoryStore | None = None
 
 
 @dataclass(frozen=True)
@@ -175,6 +178,36 @@ class AskClarifyingQuestionArgs(BaseModel):
     text: str
 
 
+class SetUserProfileFactArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    value: Any
+
+
+class GetUserProfileArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    include_empty: bool = False
+
+
+class SearchHealthMemoryArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str
+    limit: int = 5
+
+
+class WriteSummaryMemoryArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    period_start: date
+    period_end: date
+    kind: str
+    text: str
+    metadata: dict[str, Any] | None = None
+
+
 async def log_health_entry(ctx: RunContext[AgentDeps], args: LogHealthEntryArgs) -> dict[str, Any]:
     """Log a health journal entry exactly as represented by the user."""
     stored = await ctx.deps.health_entries.append(
@@ -221,6 +254,94 @@ async def ask_clarifying_question(
         summary=args.text,
         data={"status": "clarification_requested"},
     ).model_dump()
+
+
+async def set_user_profile_fact(
+    ctx: RunContext[AgentDeps],
+    args: SetUserProfileFactArgs,
+) -> dict[str, Any]:
+    """Remember an explicit stable user profile fact."""
+    store = _require_profile_store(ctx.deps)
+    await store.set_fact(ctx.deps.user_id, args.key, args.value, source=ctx.deps.source)
+    return ToolResult(
+        ok=True,
+        summary=f"Saved profile fact: {args.key}.",
+        data={"key": args.key, "status": "saved"},
+    ).model_dump()
+
+
+async def get_user_profile(
+    ctx: RunContext[AgentDeps],
+    args: GetUserProfileArgs,
+) -> dict[str, Any]:
+    """Return saved profile facts for this user."""
+    store = _require_profile_store(ctx.deps)
+    facts = await store.list_facts(ctx.deps.user_id)
+    if not facts and not args.include_empty:
+        summary = "No profile facts saved yet."
+    else:
+        summary = f"Found {len(facts)} profile facts."
+    return ToolResult(ok=True, summary=summary, data={"facts": facts}).model_dump()
+
+
+async def search_health_memory(
+    ctx: RunContext[AgentDeps],
+    args: SearchHealthMemoryArgs,
+) -> dict[str, Any]:
+    """Search durable health summary memory."""
+    store = _require_summary_memory_store(ctx.deps)
+    matches = await store.search(ctx.deps.user_id, args.query, limit=args.limit)
+    data = [
+        {
+            "id": item.id,
+            "period_start": item.period_start.isoformat(),
+            "period_end": item.period_end.isoformat(),
+            "kind": item.kind,
+            "text": item.text,
+            "metadata": item.metadata,
+        }
+        for item in matches
+    ]
+    return ToolResult(
+        ok=True,
+        summary=f"Found {len(data)} memory matches.",
+        data={"matches": data},
+    ).model_dump()
+
+
+async def write_summary_memory(
+    ctx: RunContext[AgentDeps],
+    args: WriteSummaryMemoryArgs,
+) -> dict[str, Any]:
+    """Write a durable summary observation."""
+    store = _require_summary_memory_store(ctx.deps)
+    await store.write(
+        ctx.deps.user_id,
+        SummaryMemoryDraft(
+            period_start=args.period_start,
+            period_end=args.period_end,
+            kind=args.kind,
+            text=args.text,
+            metadata=args.metadata,
+        ),
+    )
+    return ToolResult(
+        ok=True,
+        summary="Saved summary memory.",
+        data={"status": "saved", "kind": args.kind},
+    ).model_dump()
+
+
+def _require_profile_store(deps: AgentDeps) -> ProfileStore:
+    if deps.stores is None or deps.stores.profile is None:
+        raise RuntimeError("profile store is not configured")
+    return deps.stores.profile
+
+
+def _require_summary_memory_store(deps: AgentDeps) -> SummaryMemoryStore:
+    if deps.stores is None or deps.stores.summary_memory is None:
+        raise RuntimeError("summary memory store is not configured")
+    return deps.stores.summary_memory
 
 
 @dataclass(frozen=True)
@@ -375,14 +496,22 @@ __all__ = [
     "AgentReply",
     "AgentStores",
     "DEFAULT_POLICY_PROMPT",
+    "GetUserProfileArgs",
     "HealthSummaryArgs",
     "LLMConfig",
     "LogHealthEntryArgs",
     "MessageContext",
     "PulseKeeperAgent",
+    "SearchHealthMemoryArgs",
+    "SetUserProfileFactArgs",
     "ToolResult",
+    "WriteSummaryMemoryArgs",
     "build_agent",
     "get_health_summary",
+    "get_user_profile",
     "log_health_entry",
     "run_turn",
+    "search_health_memory",
+    "set_user_profile_fact",
+    "write_summary_memory",
 ]

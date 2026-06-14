@@ -5,12 +5,14 @@ from pathlib import Path
 
 from pulsekeeper.domain import HealthEntry
 from pulsekeeper.storage.health_entries import HealthEntryStore
+from pulsekeeper.storage.imports import ImportItem, ImportRun, ImportStore
 from pulsekeeper.storage.memory import (
     ConversationStateStore,
     PreferenceStore,
     ProfileStore,
     SummaryMemoryStore,
 )
+from pulsekeeper.storage.reminders import Reminder, ReminderStore
 from pulsekeeper.storage.sqlite import Database
 from pulsekeeper.storage.users import GatewayStateStore, UserStore
 
@@ -44,9 +46,14 @@ __all__ = [
     "Database",
     "GatewayStateStore",
     "HealthEntryStore",
+    "ImportItem",
+    "ImportRun",
+    "ImportStore",
     "JsonlHealthLog",
     "PreferenceStore",
     "ProfileStore",
+    "Reminder",
+    "ReminderStore",
     "SummaryMemoryStore",
     "UserStore",
     "user_health_log_path",

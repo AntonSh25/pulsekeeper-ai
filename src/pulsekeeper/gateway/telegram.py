@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pulsekeeper.llm.agent import AgentDeps, MessageContext, PulseKeeperAgent, run_turn
 from pulsekeeper.storage.health_entries import HealthEntryStore
+from pulsekeeper.storage.memory import ProfileStore
 from pulsekeeper.storage.sqlite import Database
 from pulsekeeper.storage.users import UserStore
 
@@ -68,6 +69,7 @@ class TelegramGateway:
         self.health_entries = health_entries
         self.agent = agent
         self.users = users or UserStore(db)
+        self.profile = ProfileStore(db)
 
     async def resolve_user(self, *, telegram_user_id: int, chat_id: int) -> int:
         if telegram_user_id != self.config.owner_telegram_user_id:
@@ -113,6 +115,8 @@ class TelegramGateway:
                 return await self._undo_text(user_id=user_id)
             if command == "profile":
                 return await self._profile_text(user_id=user_id)
+            if command == "set":
+                return await self._set_text(user_id=user_id, text=normalized_text)
             if command == "reminders":
                 return "Reminders are not enabled yet. Reminder scheduling is planned for Phase 9."
             return UNKNOWN_COMMAND_TEXT
@@ -167,21 +171,37 @@ class TelegramGateway:
             details += f": {entry.note}"
         return f"Deleted last entry: {details}."
 
+    async def _set_text(self, *, user_id: int, text: str) -> str:
+        parts = text.split(maxsplit=2)
+        if len(parts) < 3:
+            return "Usage: /set timezone <IANA timezone> or /set goal <goal>."
+
+        field = parts[1].lower()
+        value = parts[2].strip()
+        if not value:
+            return "Usage: /set timezone <IANA timezone> or /set goal <goal>."
+
+        if field == "timezone":
+            try:
+                ZoneInfo(value)
+            except ZoneInfoNotFoundError:
+                return f"Unknown timezone: {value}. Use an IANA timezone like Europe/Moscow."
+            await self.profile.set_fact(user_id, "timezone", value, source="telegram_command")
+            return f"Saved timezone: {value}."
+
+        if field == "goal":
+            await self.profile.set_fact(user_id, "goal", value, source="telegram_command")
+            return f"Saved goal: {value}."
+
+        return "Usage: /set timezone <IANA timezone> or /set goal <goal>."
+
     async def _profile_text(self, *, user_id: int) -> str:
-        rows = await self.db.fetchall(
-            """
-            SELECT key, value_json
-            FROM user_profile_facts
-            WHERE user_id = ?
-            ORDER BY key ASC
-            """,
-            (user_id,),
-        )
-        if not rows:
+        facts = await self.profile.list_facts(user_id)
+        if not facts:
             return "Profile\nNo profile facts saved yet."
         lines = ["Profile"]
-        for row in rows:
-            lines.append(f"- {row['key']}: {_format_profile_value(row['value_json'])}")
+        for key, value in facts.items():
+            lines.append(f"- {key}: {_format_profile_value(value)}")
         return "\n".join(lines)
 
 
@@ -244,8 +264,7 @@ def _command_name(text: str) -> str | None:
     return command or None
 
 
-def _format_profile_value(value_json: str) -> str:
-    value = json.loads(value_json)
+def _format_profile_value(value: Any) -> str:
     if isinstance(value, str):
         return value
     return json.dumps(value, ensure_ascii=False, sort_keys=True)

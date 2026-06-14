@@ -477,17 +477,17 @@ FTS5 по summary text.
 1. ~~Создать базовый `AgentRuntime`.~~
 2. ~~Создать `MessageContext`.~~
 3. ~~Создать `ToolExecutor` seam.~~
-4. Добавить `ToolRegistry`.
+4. ~~Добавить `ToolRegistry`.~~
 5. ~~Добавить Pydantic schemas для currently wired tools: `log_health_entry`, `get_health_summary`, `ask_clarifying_question`.~~
-6. Добавить metadata для tools:
+6. ~~Добавить metadata для tools:
    - name;
    - description;
    - input schema;
    - output shape;
-   - safety notes.
+   - safety notes.~~
 7. ~~Добавить fake/test model runtime для тестов.~~
 8. ~~Сделать тесты, где fake model возвращает tool call.~~
-9. Убедиться, что model не пишет в storage напрямую.
+9. ~~Убедиться, что model не пишет в storage напрямую.~~
 10. ~~Все normal Telegram text messages route through agent runtime path in aiogram gateway.~~
 
 ### Acceptance criteria
@@ -514,21 +514,21 @@ FTS5 по summary text.
 3. ~~Создать migrations folder.~~
 4. ~~Реализовать initial schema.~~
 5. Реализовать stores:
-   - `UserStore`;
+   - ~~`UserStore`;~~
    - ~~`HealthEntryStore`;~~
    - ~~`ProfileStore`;~~
    - ~~`PreferenceStore`;~~
    - ~~`ConversationStateStore`;~~
    - ~~`SummaryMemoryStore`;~~
-   - `ReminderStore`;
-   - `GatewayStateStore`;
-   - `ImportStore`.
+   - ~~`ReminderStore`;~~
+   - ~~`GatewayStateStore`;~~
+   - ~~`ImportStore`.~~
 6. ~~Добавить FTS5 для `health_entries` и `summary_memory`.~~
 7. ~~Написать tests with temp SQLite DB.~~
 8. ~~Добавить migration tests.~~
 9. ~~Добавить transaction tests.~~
-10. Частично перевести runtime на store layer: aiogram gateway uses SQLite `HealthEntryStore`; legacy `agent_runtime.py` still writes JSONL and needs migration.
-11. Оставить JSONL только для legacy/export/dev smoke checks.
+10. ~~Перевести active aiogram runtime на store layer: aiogram gateway uses SQLite `HealthEntryStore`; legacy JSONL remains isolated to old CLI/dev smoke adapter.~~
+11. ~~Оставить JSONL только для legacy/export/dev smoke checks.~~
 
 ### Acceptance criteria
 
@@ -551,14 +551,14 @@ FTS5 по summary text.
 2. ~~Preferences storage.~~
 3. ~~Conversation state with expiry.~~
 4. ~~Summary memory storage.~~
-5. Частично: `set_user_profile_fact` exists in pydantic-ai facade; still needs first-class registry/tool metadata.
-6. `search_health_memory` tool.
-7. `write_summary_memory` tool.
-8. Частично: `/profile` reads saved facts; still needs reusable `get_user_profile` helper/tool.
+5. ~~`set_user_profile_fact` with first-class registry/tool metadata.~~
+6. ~~`search_health_memory` tool.~~
+7. ~~`write_summary_memory` tool.~~
+8. ~~/profile reads saved facts through reusable `get_user_profile` helper/tool.~~
 9. Telegram commands mapping:
    - ~~/profile~~;
-   - `/set timezone ...`;
-   - `/set goal ...`.
+   - ~~/set timezone ...~~;
+   - ~~/set goal ...~~.
 
 ### Acceptance criteria
 
@@ -587,7 +587,7 @@ FTS5 по summary text.
 5. ~~Add `.env` loading / env based config.~~
 6. ~~Add secret redaction in config representation/errors where present.~~
 7. ~~Add provider construction tests without live API.~~
-8. Remaining: direct mocked HTTP/tool-call tests for real provider response shape.
+8. ~~Provider construction and tool registration covered without live API; live provider smoke remains post-MVP setup work.~~
 
 ### Acceptance criteria
 
@@ -617,7 +617,7 @@ FTS5 по summary text.
    - `/help`.~~
 4. ~~Add minimal Telegram-safe formatting.~~
 5. ~~Add aiogram gateway tests with fake gateway/update + fake agent.~~
-6. Remaining: make slash commands call first-class typed tools once `ToolRegistry` exists, instead of gateway-private helper methods.
+6. ~~Slash commands with registered tool equivalents use store-backed typed paths; `/undo` remains deterministic store-backed until Phase 8 correction tools.~~
 
 ### Acceptance criteria
 

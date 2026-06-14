@@ -13,6 +13,7 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pulsekeeper.llm.agent import (
     DEFAULT_POLICY_PROMPT,
     AgentDeps,
+    AgentStores,
     LLMConfig,
     LogHealthEntryArgs,
     MessageContext,
@@ -20,6 +21,7 @@ from pulsekeeper.llm.agent import (
     run_turn,
 )
 from pulsekeeper.storage.health_entries import HealthEntryStore
+from pulsekeeper.storage.memory import ProfileStore, SummaryMemoryStore
 from pulsekeeper.storage.sqlite import Database
 
 
@@ -219,6 +221,117 @@ def test_function_model_can_get_health_summary_from_store(tmp_path):
             assert tool_result_payload["data"]["end"] == "2026-06-14"
             assert tool_result_payload["data"]["total_count"] == 2
             assert tool_result_payload["data"]["counts_by_kind"] == {"food": 1, "weight": 1}
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
+def test_function_model_can_manage_profile_and_summary_memory(tmp_path):
+    async def scenario() -> None:
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            user_id = await create_user(db)
+            health_entries = HealthEntryStore(db)
+            profile = ProfileStore(db)
+            summary_memory = SummaryMemoryStore(db)
+            now = datetime(2026, 6, 13, 18, 0, tzinfo=UTC)
+            deps = AgentDeps(
+                user_id=user_id,
+                health_entries=health_entries,
+                stores=AgentStores(
+                    health_entries=health_entries,
+                    profile=profile,
+                    summary_memory=summary_memory,
+                ),
+                now=now,
+            )
+            context = MessageContext(
+                user_id=user_id,
+                chat_id=123,
+                text="remember my timezone and save a weekly observation",
+                attachments=[],
+                now=now,
+                timezone="UTC",
+                message_id=456,
+                source="telegram",
+            )
+            calls = 0
+            seen_payloads: list[dict[str, Any]] = []
+
+            def model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                nonlocal calls
+                calls += 1
+                tool_names = {tool.name for tool in info.function_tools}
+                assert "set_user_profile_fact" in tool_names
+                assert "get_user_profile" in tool_names
+                assert "write_summary_memory" in tool_names
+                assert "search_health_memory" in tool_names
+                if calls == 1:
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "set_user_profile_fact",
+                                {"key": "timezone", "value": "Europe/Moscow"},
+                                tool_call_id="set-profile-1",
+                            )
+                        ]
+                    )
+                if calls == 2:
+                    seen_payloads.append(messages[-1].parts[0].content)
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "write_summary_memory",
+                                {
+                                    "period_start": "2026-06-08",
+                                    "period_end": "2026-06-14",
+                                    "kind": "weekly_observation",
+                                    "text": "Weight was stable around 84 kg.",
+                                },
+                                tool_call_id="write-memory-1",
+                            )
+                        ]
+                    )
+                if calls == 3:
+                    seen_payloads.append(messages[-1].parts[0].content)
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "search_health_memory",
+                                {"query": "stable weight", "limit": 3},
+                                tool_call_id="search-memory-1",
+                            )
+                        ]
+                    )
+                if calls == 4:
+                    seen_payloads.append(messages[-1].parts[0].content)
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "get_user_profile",
+                                {},
+                                tool_call_id="get-profile-1",
+                            )
+                        ]
+                    )
+                seen_payloads.append(messages[-1].parts[0].content)
+                return ModelResponse(parts=[TextPart("Saved profile and memory.")])
+
+            agent = build_agent(
+                LLMConfig(auth_mode="test", base_url=None, model="function"),
+                model=FunctionModel(model, model_name="memory-tools-test"),
+            )
+
+            reply = await run_turn(agent, context, deps)
+
+            assert reply.text == "Saved profile and memory."
+            assert await profile.get_timezone(user_id) == "Europe/Moscow"
+            matches = await summary_memory.search(user_id, "weight")
+            assert len(matches) == 1
+            assert matches[0].text == "Weight was stable around 84 kg."
+            assert seen_payloads[-1]["data"]["facts"] == {"timezone": "Europe/Moscow"}
         finally:
             await db.close()
 
