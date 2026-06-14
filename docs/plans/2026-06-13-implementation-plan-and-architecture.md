@@ -463,7 +463,8 @@ FTS5 по summary text.
 - ~~Telegram slash commands: `/start`, `/help`, `/summary`, `/today`, `/week`, `/undo`, `/profile`, `/reminders` placeholder.~~
 - ~~Config and doctor diagnostics, including redacted provider reachability check.~~
 - ~~Apple Health XML import slice for weight, sleep, workouts, and steps, with idempotent external-ID tracking and CLI command.~~
-- ~~Quality gate: `uv run pytest -q` passes — 131 tests.~~
+- ~~Telegram photo metadata handling and local media storage seam for food-image logging.~~
+- ~~Quality gate: `uv run pytest -q` passes — 135 tests.~~
 - ~~Quality gate: `uv run ruff check .` passes.~~
 
 ---
@@ -852,8 +853,8 @@ If API/export is practical:
 
 ### Tasks
 
-1. Telegram photo handling.
-2. Local media storage.
+1. ~~Telegram photo handling.~~
+2. ~~Local media storage.~~
 3. Optional BYOK vision provider.
 4. Image-derived entry tool path.
 5. Ask clarification if needed.

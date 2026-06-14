@@ -73,6 +73,88 @@ def test_authorized_owner_message_creates_account_and_routes_text_to_agent(tmp_p
     run(scenario())
 
 
+def test_authorized_owner_photo_routes_caption_and_saved_attachment_to_agent(tmp_path, monkeypatch):
+    async def scenario() -> None:
+        from pulsekeeper.gateway import telegram
+        from pulsekeeper.gateway.telegram import (
+            TelegramGateway,
+            TelegramGatewayConfig,
+            TelegramPhoto,
+        )
+        from pulsekeeper.storage.media import LocalMediaStore
+
+        db = Database(tmp_path / "state.db")
+        await db.initialize()
+        try:
+            store = HealthEntryStore(db)
+            calls = []
+
+            async def fake_run_turn(agent, context, deps):
+                calls.append((agent, context, deps))
+                return AgentReply(
+                    text=(
+                        "What meal details should I log from this photo? "
+                        "I will not estimate precise calories."
+                    ),
+                    tool_trace=[],
+                    used_iterations=0,
+                    finished_reason="completed",
+                )
+
+            monkeypatch.setattr(telegram, "run_turn", fake_run_turn)
+            gateway = TelegramGateway(
+                config=TelegramGatewayConfig(bot_token="secret-token", owner_telegram_user_id=111),
+                db=db,
+                health_entries=store,
+                agent=object(),
+                media_store=LocalMediaStore(tmp_path / "media"),
+            )
+
+            reply = await gateway.handle_photo(
+                photos=[
+                    TelegramPhoto(
+                        file_id="small-file",
+                        file_unique_id="small-unique",
+                        width=90,
+                        height=90,
+                        file_size=512,
+                    ),
+                    TelegramPhoto(
+                        file_id="large-file",
+                        file_unique_id="large-unique",
+                        width=1280,
+                        height=720,
+                        file_size=4096,
+                    ),
+                ],
+                photo_bytes=b"fake jpeg",
+                caption="lunch plate",
+                telegram_user_id=111,
+                chat_id=222,
+                message_id=444,
+                now=datetime(2026, 6, 14, 12, 0, tzinfo=UTC),
+            )
+
+            assert "precise calories" in reply
+            assert calls
+            _, context, deps = calls[0]
+            assert context.text == "lunch plate"
+            assert context.message_id == 444
+            assert len(context.attachments) == 1
+            attachment = context.attachments[0]
+            assert attachment.kind == "photo"
+            assert attachment.file_id == "large-file"
+            assert attachment.file_unique_id == "large-unique"
+            assert attachment.width == 1280
+            assert attachment.height == 720
+            assert attachment.path.read_bytes() == b"fake jpeg"
+            assert deps.health_entries is store
+        finally:
+            await db.close()
+
+    run(scenario())
+
+
 def test_unauthorized_user_gets_denial_without_account_or_agent_call(tmp_path, monkeypatch):
     async def scenario() -> None:
         from pulsekeeper.gateway import telegram
@@ -372,6 +454,56 @@ def test_today_summary_uses_configured_timezone_for_local_day(tmp_path, monkeypa
             await db.close()
 
     run(scenario())
+
+
+def test_answer_message_routes_telegram_photo_metadata_without_live_download():
+    from pulsekeeper.gateway.telegram import _answer_message
+
+    calls = []
+    replies = []
+
+    class FakeGateway:
+        async def handle_photo(self, **kwargs):
+            calls.append(kwargs)
+            return "photo reply"
+
+    async def answer(text: str) -> None:
+        replies.append(text)
+
+    message = SimpleNamespace(
+        from_user=SimpleNamespace(id=111),
+        chat=SimpleNamespace(id=222, type="private"),
+        text=None,
+        caption="dinner",
+        photo=[
+            SimpleNamespace(
+                file_id="small",
+                file_unique_id="u-small",
+                width=64,
+                height=64,
+                file_size=100,
+            ),
+            SimpleNamespace(
+                file_id="large",
+                file_unique_id="u-large",
+                width=800,
+                height=600,
+                file_size=2000,
+            ),
+        ],
+        message_id=555,
+        answer=answer,
+    )
+
+    run(_answer_message(FakeGateway(), message))
+
+    assert replies == ["photo reply"]
+    assert calls[0]["caption"] == "dinner"
+    assert calls[0]["photo_bytes"] is None
+    assert calls[0]["telegram_user_id"] == 111
+    assert calls[0]["chat_id"] == 222
+    assert calls[0]["message_id"] == 555
+    assert calls[0]["photos"][1].file_unique_id == "u-large"
 
 
 def test_run_polling_builds_aiogram_bot_without_live_network(monkeypatch):

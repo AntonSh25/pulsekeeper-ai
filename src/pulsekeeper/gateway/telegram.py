@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pulsekeeper.llm.agent import AgentDeps, MessageContext, PulseKeeperAgent, run_turn
 from pulsekeeper.storage.health_entries import HealthEntryStore
+from pulsekeeper.storage.media import LocalMediaStore, MediaAttachment
 from pulsekeeper.storage.memory import ProfileStore
 from pulsekeeper.storage.reminders import ReminderStore
 from pulsekeeper.storage.sqlite import Database
@@ -57,6 +58,15 @@ class TelegramGatewayConfig:
         )
 
 
+@dataclass(frozen=True)
+class TelegramPhoto:
+    file_id: str
+    file_unique_id: str
+    width: int
+    height: int
+    file_size: int | None = None
+
+
 class TelegramGateway:
     def __init__(
         self,
@@ -66,12 +76,14 @@ class TelegramGateway:
         health_entries: HealthEntryStore,
         agent: PulseKeeperAgent | Any,
         users: UserStore | None = None,
+        media_store: LocalMediaStore | None = None,
     ) -> None:
         self.config = config
         self.db = db
         self.health_entries = health_entries
         self.agent = agent
         self.users = users or UserStore(db)
+        self.media_store = media_store
         self.profile = ProfileStore(db)
         self.reminders = ReminderStore(db)
 
@@ -138,6 +150,68 @@ class TelegramGateway:
             chat_id=chat_id,
             text=text,
             attachments=[],
+            now=received_at,
+            timezone=self.config.default_timezone,
+            message_id=message_id,
+            source="telegram",
+        )
+        deps = AgentDeps(
+            user_id=user_id,
+            health_entries=self.health_entries,
+            now=received_at,
+            timezone=self.config.default_timezone,
+            source="telegram",
+        )
+        reply = await run_turn(self.agent, context, deps)
+        return _telegram_safe(reply.text)
+
+    async def handle_photo(
+        self,
+        *,
+        photos: list[TelegramPhoto],
+        photo_bytes: bytes | None,
+        caption: str | None,
+        telegram_user_id: int,
+        chat_id: int,
+        chat_type: str = "private",
+        message_id: int | None = None,
+        now: datetime | None = None,
+        content_type: str = "image/jpeg",
+    ) -> str:
+        if chat_type != "private":
+            return PRIVATE_CHAT_ONLY_TEXT
+
+        try:
+            user_id = await self.resolve_user(telegram_user_id=telegram_user_id, chat_id=chat_id)
+        except PermissionError:
+            return DENIED_TEXT
+
+        received_at = now or datetime.now(UTC)
+        photo = max(photos, key=lambda item: item.width * item.height)
+        attachments: list[MediaAttachment | TelegramPhoto]
+        if self.media_store is not None and photo_bytes is not None:
+            attachments = [
+                self.media_store.save_telegram_photo(
+                    user_id=user_id,
+                    file_unique_id=photo.file_unique_id,
+                    file_id=photo.file_id,
+                    content=photo_bytes,
+                    content_type=content_type,
+                    now=received_at,
+                    width=photo.width,
+                    height=photo.height,
+                    file_size=photo.file_size,
+                )
+            ]
+        else:
+            attachments = [photo]
+
+        text = caption or "Please help me log this food photo. Do not estimate precise calories."
+        context = MessageContext(
+            user_id=user_id,
+            chat_id=chat_id,
+            text=text.strip(),
+            attachments=attachments,
             now=received_at,
             timezone=self.config.default_timezone,
             message_id=message_id,
@@ -305,16 +379,39 @@ def build_dispatcher(gateway: TelegramGateway) -> Any:
 
 
 async def _answer_message(gateway: TelegramGateway, message: Any) -> None:
-    if message.from_user is None or message.text is None:
+    if message.from_user is None:
         return
-    reply = await gateway.handle_text(
-        message.text,
-        telegram_user_id=message.from_user.id,
-        chat_id=message.chat.id,
-        chat_type=str(message.chat.type),
-        message_id=message.message_id,
-    )
-    await message.answer(reply)
+    if message.text is not None:
+        reply = await gateway.handle_text(
+            message.text,
+            telegram_user_id=message.from_user.id,
+            chat_id=message.chat.id,
+            chat_type=str(message.chat.type),
+            message_id=message.message_id,
+        )
+        await message.answer(reply)
+        return
+    photos = getattr(message, "photo", None)
+    if photos:
+        reply = await gateway.handle_photo(
+            photos=[
+                TelegramPhoto(
+                    file_id=photo.file_id,
+                    file_unique_id=photo.file_unique_id,
+                    width=photo.width,
+                    height=photo.height,
+                    file_size=getattr(photo, "file_size", None),
+                )
+                for photo in photos
+            ],
+            photo_bytes=None,
+            caption=getattr(message, "caption", None),
+            telegram_user_id=message.from_user.id,
+            chat_id=message.chat.id,
+            chat_type=str(message.chat.type),
+            message_id=message.message_id,
+        )
+        await message.answer(reply)
 
 
 async def run_polling(gateway: TelegramGateway) -> None:
@@ -408,6 +505,7 @@ __all__ = [
     "START_TEXT",
     "TelegramGateway",
     "TelegramGatewayConfig",
+    "TelegramPhoto",
     "PRIVATE_CHAT_ONLY_TEXT",
     "UNKNOWN_COMMAND_TEXT",
     "build_dispatcher",
