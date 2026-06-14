@@ -40,6 +40,47 @@ max_tool_iterations = 3
     assert "***" in repr(config.llm)
 
 
+def test_load_config_includes_storage_and_telegram_sections_without_leaking_token(
+    tmp_path, monkeypatch
+):
+    config_path = tmp_path / "config.toml"
+    env_path = tmp_path / ".env"
+    config_path.write_text(
+        """
+[storage]
+dir = "./pulsekeeper-data"
+database = "custom-state.db"
+
+[telegram]
+enabled = true
+bot_token_env = "PULSEKEEPER_TEST_TELEGRAM_TOKEN"
+
+[llm]
+auth_mode = "api_key"
+base_url = "https://api.openai.com/v1"
+model = "gpt-test"
+api_key_env = "PULSEKEEPER_TEST_API_KEY"
+""".strip(),
+        encoding="utf-8",
+    )
+    env_path.write_text(
+        "PULSEKEEPER_TEST_API_KEY=sk-tes...tenv\n"
+        "PULSEKEEPER_TEST_TELEGRAM_TOKEN=123456:telegram-secret-token\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("PULSEKEEPER_TEST_API_KEY", raising=False)
+    monkeypatch.delenv("PULSEKEEPER_TEST_TELEGRAM_TOKEN", raising=False)
+
+    config = load_config(config_path, env_path=env_path)
+
+    assert config.storage.dir == tmp_path / "pulsekeeper-data"
+    assert config.storage.database_path == tmp_path / "pulsekeeper-data" / "custom-state.db"
+    assert config.telegram.enabled is True
+    assert config.telegram.bot_token == "123456:telegram-secret-token"
+    assert "telegram-secret-token" not in repr(config.telegram)
+    assert "***" in repr(config.telegram)
+
+
 def test_load_config_auto_loads_dotenv_beside_config_without_mutating_environment(
     tmp_path, monkeypatch
 ):

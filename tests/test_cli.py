@@ -155,3 +155,95 @@ def test_telegram_poll_once_command_uses_fixture_without_token_or_parser(tmp_pat
     assert "Нужен BYOK LLM provider" in result.stdout
     log = JsonlHealthLog(storage_dir / "users" / "111" / "health.jsonl")
     assert log.read_all() == []
+
+
+def test_config_command_prints_redacted_setup_summary(tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[telegram]
+enabled = true
+bot_token = "123456:telegram-secret-token"
+
+[llm]
+auth_mode = "api_key"
+base_url = "https://api.openai.com/v1"
+model = "gpt-test"
+api_key = "***"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["config", "--config", str(config_path)])
+
+    assert result.exit_code == 0
+    assert "Config:" in result.stdout
+    assert "storage.dir:" in result.stdout
+    assert "llm.model: gpt-test" in result.stdout
+    assert "telegram.enabled: true" in result.stdout
+    assert "telegram-secret-token" not in result.stdout
+    assert "***" in result.stdout
+
+
+def test_doctor_reports_actionable_redacted_diagnostics(tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[telegram]
+enabled = true
+bot_token_env = "MISSING_TELEGRAM_TOKEN"
+
+[llm]
+auth_mode = "api_key"
+base_url = "https://api.openai.com/v1"
+model = "gpt-test"
+api_key = "***"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor", "--config", str(config_path)])
+
+    assert result.exit_code == 1
+    assert "OK storage writable" in result.stdout
+    assert "OK DB migrations" in result.stdout
+    assert "FAIL Telegram token" in result.stdout
+    assert "Set MISSING_TELEGRAM_TOKEN" in result.stdout
+    assert "OK provider configured" in result.stdout
+    assert "WARN provider reachable" in result.stdout
+    assert "***" not in result.stdout
+
+
+def test_doctor_warns_about_inline_secrets_without_leaking_them(tmp_path):
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[storage]
+dir = "./data"
+
+[telegram]
+enabled = true
+bot_token = "123456:telegram-secret-token"
+
+[llm]
+auth_mode = "api_key"
+base_url = "https://api.openai.com/v1"
+model = "gpt-test"
+api_key = "***"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["doctor", "--config", str(config_path)])
+
+    assert result.exit_code == 0
+    assert "WARN unsafe config" in result.stdout
+    assert "Move inline secrets to .env" in result.stdout
+    assert "telegram-secret-token" not in result.stdout
+    assert "***" not in result.stdout

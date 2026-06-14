@@ -22,7 +22,34 @@ class ConfigError(ValueError):
 
 
 @dataclass(frozen=True)
+class StorageConfig:
+    dir: Path
+    database: str = "state.db"
+
+    @property
+    def database_path(self) -> Path:
+        return self.dir / self.database
+
+
+@dataclass(frozen=True)
+class TelegramConfig:
+    enabled: bool = False
+    bot_token: str | None = None
+    bot_token_env: str = "TELEGRAM_BOT_TOKEN"
+
+    def __repr__(self) -> str:
+        token_repr = "'***'" if self.bot_token else "None"
+        return (
+            "TelegramConfig("
+            f"enabled={self.enabled!r}, bot_token={token_repr}, "
+            f"bot_token_env={self.bot_token_env!r})"
+        )
+
+
+@dataclass(frozen=True)
 class PulseKeeperConfig:
+    storage: StorageConfig
+    telegram: TelegramConfig
     llm: LLMConfig
 
 
@@ -44,7 +71,11 @@ def load_config(path: Path | str, env_path: Path | str | None = None) -> PulseKe
         raise ConfigError("Missing required [llm] config section")
 
     env = _load_env(env_path, config_path=config_path)
-    return PulseKeeperConfig(llm=_load_llm_config(llm_section, env=env))
+    return PulseKeeperConfig(
+        storage=_load_storage_config(raw.get("storage"), config_path=config_path),
+        telegram=_load_telegram_config(raw.get("telegram"), env=env),
+        llm=_load_llm_config(llm_section, env=env),
+    )
 
 
 def redact_secret(value: Any, *, secrets: list[str] | tuple[str, ...] = ()) -> Any:
@@ -112,6 +143,47 @@ def _load_llm_config(section: dict[str, Any], *, env: Mapping[str, str]) -> LLMC
     )
 
 
+def _load_storage_config(section: Any, *, config_path: Path) -> StorageConfig:
+    if section is None:
+        return StorageConfig(dir=Path.home() / ".pulsekeeper")
+    if not isinstance(section, dict):
+        raise ConfigError("storage config section must be a TOML table")
+
+    raw_dir = section.get("dir", str(Path.home() / ".pulsekeeper"))
+    if not isinstance(raw_dir, str) or not raw_dir:
+        raise ConfigError("storage.dir must be a non-empty string")
+    storage_dir = Path(raw_dir).expanduser()
+    if not storage_dir.is_absolute():
+        storage_dir = config_path.parent / storage_dir
+
+    database = section.get("database", "state.db")
+    if not isinstance(database, str) or not database:
+        raise ConfigError("storage.database must be a non-empty string")
+    if Path(database).is_absolute():
+        raise ConfigError("storage.database must be a relative filename")
+    return StorageConfig(dir=storage_dir, database=database)
+
+
+def _load_telegram_config(section: Any, *, env: Mapping[str, str]) -> TelegramConfig:
+    if section is None:
+        return TelegramConfig(bot_token=env.get("TELEGRAM_BOT_TOKEN"))
+    if not isinstance(section, dict):
+        raise ConfigError("telegram config section must be a TOML table")
+
+    enabled = section.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ConfigError("telegram.enabled must be true or false")
+    bot_token_env = section.get("bot_token_env", "TELEGRAM_BOT_TOKEN")
+    if not isinstance(bot_token_env, str) or not bot_token_env:
+        raise ConfigError("telegram.bot_token_env must be a non-empty string")
+
+    direct = section.get("bot_token")
+    if direct is not None and (not isinstance(direct, str) or not direct):
+        raise ConfigError("telegram.bot_token must be a non-empty string when provided")
+    token = direct or env.get(bot_token_env)
+    return TelegramConfig(enabled=enabled, bot_token=token, bot_token_env=bot_token_env)
+
+
 def _load_env(env_path: Path | str | None, *, config_path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     path = Path(env_path) if env_path is not None else config_path.parent / ".env"
@@ -164,6 +236,8 @@ __all__ = [
     "ConfigError",
     "DEFAULT_HERMES_PROXY_BASE_URL",
     "PulseKeeperConfig",
+    "StorageConfig",
+    "TelegramConfig",
     "load_config",
     "redact_secret",
 ]

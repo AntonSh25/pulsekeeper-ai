@@ -634,17 +634,17 @@ FTS5 по summary text.
 
 ### Tasks
 
-1. Add `config.toml` support.
-2. Add `.env.example`.
-3. Add `pulsekeeper config`.
+1. ~~Add `config.toml` support.~~
+2. ~~Add `.env.example`.~~
+3. ~~Add `pulsekeeper config`.~~
 4. Add `pulsekeeper doctor` checks:
-   - storage writable;
-   - DB migrations OK;
-   - Telegram token configured if needed;
-   - provider configured;
+   - ~~storage writable~~;
+   - ~~DB migrations OK~~;
+   - ~~Telegram token configured if needed~~;
+   - ~~provider configured~~;
    - provider reachable;
-   - no obvious unsafe config.
-5. Add redacted diagnostics.
+   - ~~no obvious unsafe config~~.
+5. ~~Add redacted diagnostics.~~
 
 ### Acceptance criteria
 

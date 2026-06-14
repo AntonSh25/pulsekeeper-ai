@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import tomllib
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 
+from pulsekeeper.config import ConfigError, load_config
 from pulsekeeper.domain import parse_health_log
 from pulsekeeper.storage import JsonlHealthLog
+from pulsekeeper.storage.sqlite import Database
 from pulsekeeper.summary import summarize_entries
 from pulsekeeper.telegram_adapter import handle_telegram_text
 from pulsekeeper.telegram_polling import TelegramBotApiClient, poll_once
@@ -17,6 +21,7 @@ from pulsekeeper.telegram_transport import handle_telegram_update
 app = typer.Typer(help="PulseKeeper CLI")
 DEFAULT_LOG_PATH = Path.home() / ".pulsekeeper" / "health.jsonl"
 DEFAULT_STORAGE_DIR = Path.home() / ".pulsekeeper"
+DEFAULT_CONFIG_PATH = Path.home() / ".pulsekeeper" / "config.toml"
 
 
 @app.command()
@@ -53,6 +58,118 @@ def summary(
     start = end if period == "day" else end - timedelta(days=6)
     entries = JsonlHealthLog(file).read_all()
     typer.echo(summarize_entries(entries, start=start, end=end).to_markdown())
+
+
+@app.command("config")
+def config_command(
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Path to config.toml."),
+    ] = DEFAULT_CONFIG_PATH,
+) -> None:
+    """Print a redacted PulseKeeper configuration summary."""
+    try:
+        loaded = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(f"Config error: {exc}")
+        raise typer.Exit(1) from exc
+
+    typer.echo(f"Config: {config_path}")
+    typer.echo(f"storage.dir: {loaded.storage.dir}")
+    typer.echo(f"storage.database: {loaded.storage.database_path}")
+    typer.echo(f"telegram.enabled: {str(loaded.telegram.enabled).lower()}")
+    typer.echo(f"telegram.bot_token: {_configured_text(loaded.telegram.bot_token)}")
+    typer.echo(f"llm.auth_mode: {loaded.llm.auth_mode}")
+    typer.echo(f"llm.base_url: {loaded.llm.base_url}")
+    typer.echo(f"llm.model: {loaded.llm.model}")
+    typer.echo(f"llm.api_key: {_configured_text(loaded.llm.api_key)}")
+
+
+@app.command("doctor")
+def doctor_command(
+    config_path: Annotated[
+        Path,
+        typer.Option("--config", help="Path to config.toml."),
+    ] = DEFAULT_CONFIG_PATH,
+    check_provider_network: Annotated[
+        bool,
+        typer.Option(
+            "--check-provider-network",
+            help="Attempt a live provider reachability check.",
+        ),
+    ] = False,
+) -> None:
+    """Run redacted self-host setup diagnostics."""
+    failures = 0
+    try:
+        loaded = load_config(config_path)
+    except ConfigError as exc:
+        typer.echo(f"FAIL config: {exc}")
+        raise typer.Exit(1) from exc
+
+    try:
+        loaded.storage.dir.mkdir(parents=True, exist_ok=True)
+        probe = loaded.storage.dir / ".pulsekeeper-write-test"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        typer.echo(f"OK storage writable: {loaded.storage.dir}")
+    except OSError as exc:
+        failures += 1
+        typer.echo(f"FAIL storage writable: {exc}")
+
+    try:
+        asyncio.run(_check_db_migrations(loaded.storage.database_path))
+        typer.echo(f"OK DB migrations: {loaded.storage.database_path}")
+    except Exception as exc:
+        failures += 1
+        typer.echo(f"FAIL DB migrations: {exc}")
+
+    if loaded.telegram.enabled and not loaded.telegram.bot_token:
+        failures += 1
+        typer.echo(f"FAIL Telegram token: Set {loaded.telegram.bot_token_env} in .env")
+    elif loaded.telegram.enabled:
+        typer.echo("OK Telegram token: configured")
+    else:
+        typer.echo("OK Telegram token: not required because telegram.enabled=false")
+
+    typer.echo(f"OK provider configured: {loaded.llm.auth_mode} {loaded.llm.model}")
+    unsafe_messages = _unsafe_config_messages(config_path)
+    if unsafe_messages:
+        unsafe_list = ", ".join(unsafe_messages)
+        typer.echo(f"WARN unsafe config: Move inline secrets to .env ({unsafe_list})")
+    else:
+        typer.echo("OK unsafe config: no inline secrets found")
+    if check_provider_network:
+        typer.echo("WARN provider reachable: live network check is not implemented yet")
+    else:
+        typer.echo("WARN provider reachable: skipped (use --check-provider-network)")
+
+    if failures:
+        raise typer.Exit(1)
+
+
+async def _check_db_migrations(path: Path) -> None:
+    database = Database(path)
+    try:
+        await database.initialize()
+    finally:
+        await database.close()
+
+
+def _unsafe_config_messages(config_path: Path) -> list[str]:
+    raw = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    messages: list[str] = []
+    llm = raw.get("llm", {})
+    if isinstance(llm, dict) and llm.get("api_key"):
+        messages.append("llm.api_key")
+    telegram = raw.get("telegram", {})
+    if isinstance(telegram, dict) and telegram.get("bot_token"):
+        messages.append("telegram.bot_token")
+    return messages
+
+
+def _configured_text(value: str | None) -> str:
+    return "***" if value else "not configured"
 
 
 @app.command("telegram-handle")

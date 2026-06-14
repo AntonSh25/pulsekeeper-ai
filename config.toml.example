@@ -1,0 +1,18 @@
+# Copy to ~/.pulsekeeper/config.toml (or pass --config PATH).
+# Keep real secrets in .env beside this file, not inline here.
+
+[storage]
+dir = "~/.pulsekeeper"
+database = "state.db"
+
+[telegram]
+enabled = true
+bot_token_env = "TELEGRAM_BOT_TOKEN"
+
+[llm]
+auth_mode = "api_key"
+base_url = "https://api.openai.com/v1"
+model = "gpt-4.1-mini"
+api_key_env = "OPENAI_API_KEY"
+timeout = 60
+max_tool_iterations = 4
