@@ -92,3 +92,9 @@ def test_implementation_plan_records_completed_mvp_status_consistently():
     assert "5. ~~Add architecture docs:" in plan
     assert "### Increment 1 — ToolRegistry + schemas\n\n- ~~Add `ToolRegistry`.~~" in plan
     assert "### Increment 7 — Reminders MVP\n\n- ~~ReminderStore.~~" in plan
+    assert "- ~~normal text не идёт в parser;~~" in plan
+    assert "- ~~fresh DB initializes deterministically;~~" in plan
+    assert "- ~~agent can remember stable explicit facts;~~" in plan
+    assert "- ~~no live LLM calls in unit tests;~~" in plan
+    assert "- ~~“вес 84.2” becomes tool call, not parser result;~~" in plan
+    assert "- ~~all imports idempotent;~~" in plan

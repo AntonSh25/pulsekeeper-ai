@@ -498,11 +498,11 @@ FTS5 по summary text.
 
 ### Acceptance criteria
 
-- normal text не идёт в parser;
-- fake model может вызвать `log_health_entry`;
-- fake model может вызвать `get_health_summary`;
-- invalid tool args дают controlled error;
-- tests green.
+- ~~normal text не идёт в parser;~~
+- ~~fake model может вызвать `log_health_entry`;~~
+- ~~fake model может вызвать `get_health_summary`;~~
+- ~~invalid tool args дают controlled error;~~
+- ~~tests green.~~
 
 ---
 
@@ -538,12 +538,12 @@ FTS5 по summary text.
 
 ### Acceptance criteria
 
-- fresh DB initializes deterministically;
-- migrations idempotent;
-- health entry append/list/update/delete works;
-- FTS search works;
-- agent tools write through stores;
-- no direct JSONL writes in runtime path.
+- ~~fresh DB initializes deterministically;~~
+- ~~migrations idempotent;~~
+- ~~health entry append/list/update/delete works;~~
+- ~~FTS search works;~~
+- ~~agent tools write through stores;~~
+- ~~no direct JSONL writes in runtime path.~~
 
 ---
 
@@ -568,10 +568,10 @@ FTS5 по summary text.
 
 ### Acceptance criteria
 
-- agent can remember stable explicit facts;
-- short-lived clarification state expires;
-- summary memory searchable;
-- profile exportable/editable later.
+- ~~agent can remember stable explicit facts;~~
+- ~~short-lived clarification state expires;~~
+- ~~summary memory searchable;~~
+- ~~profile exportable/editable later.~~
 
 ---
 
@@ -597,10 +597,10 @@ FTS5 по summary text.
 
 ### Acceptance criteria
 
-- no live LLM calls in unit tests;
-- provider can return tool calls;
-- missing API key gives clear error;
-- secrets never printed.
+- ~~no live LLM calls in unit tests;~~
+- ~~provider can return tool calls;~~
+- ~~missing API key gives clear error;~~
+- ~~secrets never printed.~~
 
 ---
 
@@ -627,10 +627,10 @@ FTS5 по summary text.
 
 ### Acceptance criteria
 
-- “вес 84.2” becomes tool call, not parser result;
-- “дай сводку за неделю” becomes summary tool call;
-- `/week` uses the same summary tool path;
-- user receives concise Telegram-friendly response.
+- ~~“вес 84.2” becomes tool call, not parser result;~~
+- ~~“дай сводку за неделю” becomes summary tool call;~~
+- ~~`/week` uses the same summary tool path;~~
+- ~~user receives concise Telegram-friendly response.~~
 
 ---
 
@@ -844,9 +844,9 @@ If API/export is practical:
 
 ### Rules
 
-- all imports idempotent;
-- external IDs stored in `import_items`;
-- imported events have `source` and metadata.
+- ~~all imports idempotent;~~
+- ~~external IDs stored in `import_items`;~~
+- ~~imported events have `source` and metadata.~~
 
 ---
 
