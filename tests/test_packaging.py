@@ -75,3 +75,22 @@ def test_github_actions_ci_runs_quality_build_and_docker_publish_without_plain_s
     assert "GITHUB_TOKEN" in workflow
     assert "TELEGRAM_BOT_TOKEN" not in workflow
     assert "OPENAI_API_KEY" not in workflow
+
+
+def test_pypi_packaging_supports_pipx_install_with_tag_gated_trusted_publish():
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert 'name = "pulsekeeper-ai"' in pyproject
+    assert 'pulsekeeper = "pulsekeeper.cli:app"' in pyproject
+    assert "pipx install pulsekeeper-ai" in readme
+    assert "pypa/gh-action-pypi-publish" in workflow
+    assert "id-token: write" in workflow
+    expected_pypi_guard = (
+        "if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}"
+    )
+    assert expected_pypi_guard in workflow
+    assert "dist/*" in workflow
+    assert "PYPI_API_TOKEN" not in workflow
+    assert "secrets.PYPI" not in workflow

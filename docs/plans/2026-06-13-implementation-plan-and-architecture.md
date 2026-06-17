@@ -1,7 +1,7 @@
 # PulseKeeper: архитектура и пошаговый план реализации
 
 Дата: 2026-06-13  
-Статус: рабочий implementation roadmap, обновлён после SQLite export CLI инкремента
+Статус: implementation roadmap completed through MVP success criteria
 Репозиторий: `AntonSh25/pulsekeeper-ai`  
 Ветка: `feat/mvp-summaries`
 
@@ -882,7 +882,7 @@ Do not claim precise calories from images.
    - ruff;
    - build;
    - Docker publish.~~
-7. Later PyPI package for `pipx install pulsekeeper-ai`.
+7. ~~PyPI package for `pipx install pulsekeeper-ai` via tag-gated trusted publishing.~~
 
 ---
 
@@ -999,18 +999,18 @@ uv run ruff check .
 
 MVP считается useful, когда пользователь может:
 
-1. self-host bot locally;
-2. configure Telegram token and BYOK LLM;
-3. send Telegram messages like:
+1. ~~self-host bot locally;~~
+2. ~~configure Telegram token and BYOK LLM;~~
+3. ~~send Telegram messages like:
    - “вес 84.2”;
    - “завтрак омлет и кофе”;
    - “тренировка 45 минут зона 2”;
    - “дай сводку за неделю”;
-   - “напомни взвешиваться по утрам”;
-4. receive concise useful confirmations/summaries;
-5. correct/delete last entry;
+   - “напомни взвешиваться по утрам”;~~
+4. ~~receive concise useful confirmations/summaries;~~
+5. ~~correct/delete last entry;~~
 6. ~~export data;~~
-7. understand where data is stored and what goes to LLM provider.
+7. ~~understand where data is stored and what goes to LLM provider.~~
 
 ---
 

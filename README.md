@@ -76,6 +76,14 @@ The database layer should expose typed stores for health entries, profile memory
 This path starts PulseKeeper locally with explicit BYOK credentials and local SQLite storage.
 Do not paste real tokens or API keys into issues, logs, screenshots, or commits.
 
+After the first PyPI release, install the CLI with:
+
+```bash
+pipx install pulsekeeper-ai
+```
+
+Until then, run from a checkout with `uv run pulsekeeper ...` as shown below.
+
 ```bash
 # 1. Install dependencies
 uv sync --extra dev
