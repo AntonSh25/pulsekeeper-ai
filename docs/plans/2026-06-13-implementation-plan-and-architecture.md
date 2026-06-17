@@ -643,7 +643,7 @@ FTS5 по summary text.
 1. ~~Add `config.toml` support.~~
 2. ~~Add `.env.example`.~~
 3. ~~Add `pulsekeeper config`.~~
-4. Add `pulsekeeper doctor` checks:
+4. ~~Add `pulsekeeper doctor` checks:~~
    - ~~storage writable~~;
    - ~~DB migrations OK~~;
    - ~~Telegram token configured if needed~~;
@@ -668,7 +668,7 @@ FTS5 по summary text.
 
 1. ~~Add real HTTP client seam for `getUpdates` / `sendMessage` via `urllib`-based `TelegramBotApiClient`.~~
 2. ~~Add `TELEGRAM_BOT_TOKEN` config / `.env.example` entry for polling seam.~~
-3. Implement `telegram-run` long polling loop:
+3. ~~Implement `telegram-run` long polling loop:~~
    - ~~load offset~~;
    - ~~get updates~~;
    - ~~handle messages~~;
@@ -720,14 +720,14 @@ FTS5 по summary text.
 1. ~~Bootstrap deterministic daily/weekly summaries and gateway counts exist; richer structured summary builder now returns health blocks and cautious patterns.~~
 2. ~~Add no-LLM fallback for `/today`, `/week`, `/summary`.~~
 3. ~~Add optional LLM prose layer.~~
-4. Summary blocks:
+4. ~~Summary blocks:~~
    - ~~weight~~;
    - ~~food~~;
    - ~~sleep~~;
    - ~~workouts~~;
    - ~~symptoms/medications~~;
    - ~~notes~~.
-5. Pattern detection:
+5. ~~Pattern detection:~~
    - ~~trends~~;
    - ~~streaks~~;
    - ~~notable changes~~;
@@ -910,50 +910,50 @@ Do not claim precise calories from images.
 
 ### Increment 1 — ToolRegistry + schemas
 
-- Add `ToolRegistry`.
-- Finish metadata for all tools.
-- Migrate existing pydantic schemas into registry entries.
-- Verify tool args validation.
+- ~~Add `ToolRegistry`.~~
+- ~~Finish metadata for all tools.~~
+- ~~Migrate existing pydantic schemas into registry entries.~~
+- ~~Verify tool args validation.~~
 
 ### Increment 2 — Agent tools use SQLite stores
 
-- Replace legacy `agent_runtime.py` JSONL writes with SQLite-backed stores or retire it behind pydantic-ai facade.
-- Keep JSONL only as legacy/export path.
-- Add transaction tests around multi-tool turns.
+- ~~Replace legacy `agent_runtime.py` JSONL writes with SQLite-backed stores or retire it behind pydantic-ai facade.~~
+- ~~Keep JSONL only as legacy/export path.~~
+- ~~Add transaction tests around multi-tool turns.~~
 
 ### Increment 3 — Complete missing stores
 
-- UserStore.
-- GatewayStateStore / Telegram offsets.
-- ReminderStore.
-- ImportStore.
+- ~~UserStore.~~
+- ~~GatewayStateStore / Telegram offsets.~~
+- ~~ReminderStore.~~
+- ~~ImportStore.~~
 
 ### Increment 4 — Live Telegram polling loop
 
-- `telegram-run`.
-- offset persistence.
-- retry/backoff.
-- graceful shutdown.
-- safe token-redacted logs.
+- ~~`telegram-run`.~~
+- ~~offset persistence.~~
+- ~~retry/backoff.~~
+- ~~graceful shutdown.~~
+- ~~safe token-redacted logs.~~
 
 ### Increment 5 — Config and doctor
 
-- `pulsekeeper config`.
-- `pulsekeeper doctor`.
-- actionable redacted diagnostics.
+- ~~`pulsekeeper config`.~~
+- ~~`pulsekeeper doctor`.~~
+- ~~actionable redacted diagnostics.~~
 
 ### Increment 6 — Rich summaries + memory
 
-- deterministic summary data builder.
-- optional LLM prose layer.
-- write durable summary observations.
+- ~~deterministic summary data builder.~~
+- ~~optional LLM prose layer.~~
+- ~~write durable summary observations.~~
 
 ### Increment 7 — Reminders MVP
 
-- ReminderStore.
-- scheduler loop.
-- list/cancel commands.
-- timezone-aware delivery.
+- ~~ReminderStore.~~
+- ~~scheduler loop.~~
+- ~~list/cancel commands.~~
+- ~~timezone-aware delivery.~~
 
 ---
 

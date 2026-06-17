@@ -76,3 +76,19 @@ def test_readme_has_three_minute_quickstart_and_demo_artifact_references():
     assert "assets/demo-doctor.png" in screenshots
     assert "placeholder" in screenshots.lower()
     assert "Do not use real health data" in screenshots
+
+
+def test_implementation_plan_records_completed_mvp_status_consistently():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"
+    ).read_text(encoding="utf-8")
+
+    assert "Статус: implementation roadmap completed through MVP success criteria" in plan
+    assert "4. ~~Add `pulsekeeper doctor` checks:~~" in plan
+    assert "3. ~~Implement `telegram-run` long polling loop:~~" in plan
+    assert "4. ~~Summary blocks:~~" in plan
+    assert "5. ~~Pattern detection:~~" in plan
+    assert "6. ~~GitHub Actions:" in plan
+    assert "5. ~~Add architecture docs:" in plan
+    assert "### Increment 1 — ToolRegistry + schemas\n\n- ~~Add `ToolRegistry`.~~" in plan
+    assert "### Increment 7 — Reminders MVP\n\n- ~~ReminderStore.~~" in plan
