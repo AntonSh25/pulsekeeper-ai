@@ -98,3 +98,9 @@ def test_implementation_plan_records_completed_mvp_status_consistently():
     assert "- ~~no live LLM calls in unit tests;~~" in plan
     assert "- ~~“вес 84.2” becomes tool call, not parser result;~~" in plan
     assert "- ~~all imports idempotent;~~" in plan
+    assert "   - ~~provider reachable~~;" in plan
+    assert "   - ~~list reminders;~~" in plan
+    assert "   - ~~flag urgent language carefully;~~" in plan
+    assert "   - ~~tests;~~" in plan
+    assert "   - ~~adapters;~~" in plan
+    assert "   - ~~“вес 84.2”;~~" in plan

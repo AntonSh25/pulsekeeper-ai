@@ -698,9 +698,9 @@ FTS5 по summary text.
 2. ~~Implement `HealthEntryStore.soft_delete` / soft delete.~~
 3. ~~Implement `/undo` in aiogram gateway.~~
 4. ~~Add natural-language correction flows:
-   - “не 84.2, а 83.9”;
-   - “удали последнюю запись”;
-   - “это был обед, не завтрак”.~~
+   - ~~“не 84.2, а 83.9”;~~
+   - ~~“удали последнюю запись”;~~
+   - ~~“это был обед, не завтрак”.~~
 5. ~~Use conversation state when target is ambiguous.~~
 
 ### Acceptance criteria
@@ -752,13 +752,13 @@ FTS5 по summary text.
 2. ~~Add scheduler loop.~~
 3. ~~Add Telegram reminder delivery.~~
 4. ~~Add reminder tools:
-   - `schedule_reminder`;
-   - list reminders;
-   - cancel reminder.~~
+   - ~~`schedule_reminder`;~~
+   - ~~list reminders;~~
+   - ~~cancel reminder.~~
 5. ~~Add commands:
-   - `/remind weight daily 09:00`;
-   - `/reminders`;
-   - `/reminder off`.~~
+   - ~~`/remind weight daily 09:00`;~~
+   - ~~`/reminders`;~~
+   - ~~`/reminder off`.~~
 6. ~~Use timezone from profile for Telegram reminder commands.~~
 7. ~~Avoid missed-reminder spam after downtime.~~
 
@@ -777,28 +777,28 @@ FTS5 по summary text.
 ### Protocols
 
 1. ~~Weight tracking protocol:
-   - log weight;
-   - notice trend;
-   - avoid overreacting to daily noise.~~
+   - ~~log weight;~~
+   - ~~notice trend;~~
+   - ~~avoid overreacting to daily noise.~~
 2. ~~Sleep check-in protocol:
-   - capture duration/quality;
-   - connect patterns cautiously;
-   - no diagnosis.~~
+   - ~~capture duration/quality;~~
+   - ~~connect patterns cautiously;~~
+   - ~~no diagnosis.~~
 3. ~~Workout logging protocol:
-   - capture type/duration/intensity;
-   - connect to recovery/sleep/weight when enough data exists.~~
+   - ~~capture type/duration/intensity;~~
+   - ~~connect to recovery/sleep/weight when enough data exists.~~
 4. ~~Food logging protocol:
-   - capture meal context;
-   - avoid fake calorie precision unless user explicitly tracks calories/macros.~~
+   - ~~capture meal context;~~
+   - ~~avoid fake calorie precision unless user explicitly tracks calories/macros.~~
 5. ~~Weekly review protocol:
-   - summarize changes;
-   - identify missing data;
-   - propose one small next action.~~
+   - ~~summarize changes;~~
+   - ~~identify missing data;~~
+   - ~~propose one small next action.~~
 6. ~~Medication/symptom caution protocol:
-   - log facts;
-   - flag urgent language carefully;
-   - advise professional care when appropriate;
-   - do not give treatment instructions.~~
+   - ~~log facts;~~
+   - ~~flag urgent language carefully;~~
+   - ~~advise professional care when appropriate;~~
+   - ~~do not give treatment instructions.~~
 
 ### Acceptance criteria
 
@@ -878,10 +878,10 @@ Do not claim precise calories from images.
 4. ~~Persistent volume docs.~~
 5. ~~systemd example.~~
 6. ~~GitHub Actions:
-   - tests;
-   - ruff;
-   - build;
-   - Docker publish.~~
+   - ~~tests;~~
+   - ~~ruff;~~
+   - ~~build;~~
+   - ~~Docker publish.~~
 7. ~~PyPI package for `pipx install pulsekeeper-ai` via tag-gated trusted publishing.~~
 
 ---
@@ -895,12 +895,12 @@ Do not claim precise calories from images.
 3. ~~Add issue templates.~~
 4. ~~Add PR template.~~
 5. ~~Add architecture docs:
-   - adapters;
-   - agent tools;
-   - storage;
-   - LLM providers;
-   - reminders;
-   - integrations.~~
+   - ~~adapters;~~
+   - ~~agent tools;~~
+   - ~~storage;~~
+   - ~~LLM providers;~~
+   - ~~reminders;~~
+   - ~~integrations.~~
 6. ~~Add screenshots/GIF.~~
 7. ~~Add quickstart that works in under 3 minutes.~~
 
@@ -1002,11 +1002,11 @@ MVP считается useful, когда пользователь может:
 1. ~~self-host bot locally;~~
 2. ~~configure Telegram token and BYOK LLM;~~
 3. ~~send Telegram messages like:
-   - “вес 84.2”;
-   - “завтрак омлет и кофе”;
-   - “тренировка 45 минут зона 2”;
-   - “дай сводку за неделю”;
-   - “напомни взвешиваться по утрам”;~~
+   - ~~“вес 84.2”;~~
+   - ~~“завтрак омлет и кофе”;~~
+   - ~~“тренировка 45 минут зона 2”;~~
+   - ~~“дай сводку за неделю”;~~
+   - ~~“напомни взвешиваться по утрам”;~~
 4. ~~receive concise useful confirmations/summaries;~~
 5. ~~correct/delete last entry;~~
 6. ~~export data;~~
