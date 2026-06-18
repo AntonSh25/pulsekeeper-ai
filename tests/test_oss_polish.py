@@ -84,8 +84,10 @@ def test_implementation_plan_records_completed_mvp_status_consistently():
     ).read_text(encoding="utf-8")
 
     assert "Статус: implementation roadmap completed through MVP success criteria" in plan
+    assert "2. ~~Map slash commands to deterministic/store-backed paths:~~" in plan
     assert "4. ~~Add `pulsekeeper doctor` checks:~~" in plan
     assert "3. ~~Implement `telegram-run` long polling loop:~~" in plan
+    assert "3. ~~send Telegram messages like:~~" in plan
     assert "4. ~~Summary blocks:~~" in plan
     assert "5. ~~Pattern detection:~~" in plan
     assert "6. ~~GitHub Actions:" in plan

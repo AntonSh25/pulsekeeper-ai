@@ -611,7 +611,7 @@ FTS5 по summary text.
 ### Tasks
 
 1. ~~Route normal Telegram text through pydantic-ai agent runtime path in `TelegramGateway`.~~
-2. Map slash commands to deterministic/store-backed paths:
+2. ~~Map slash commands to deterministic/store-backed paths:~~
    - ~~/summary~~;
    - ~~/today~~;
    - ~~/week~~;
@@ -1001,7 +1001,7 @@ MVP считается useful, когда пользователь может:
 
 1. ~~self-host bot locally;~~
 2. ~~configure Telegram token and BYOK LLM;~~
-3. ~~send Telegram messages like:
+3. ~~send Telegram messages like:~~
    - ~~“вес 84.2”;~~
    - ~~“завтрак омлет и кофе”;~~
    - ~~“тренировка 45 минут зона 2”;~~
