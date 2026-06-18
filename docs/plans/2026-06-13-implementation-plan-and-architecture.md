@@ -486,11 +486,11 @@ FTS5 по summary text.
 4. ~~Добавить `ToolRegistry`.~~
 5. ~~Добавить Pydantic schemas для currently wired tools: `log_health_entry`, `get_health_summary`, `ask_clarifying_question`.~~
 6. ~~Добавить metadata для tools:
-   - name;
-   - description;
-   - input schema;
-   - output shape;
-   - safety notes.~~
+   - ~~name;~~
+   - ~~description;~~
+   - ~~input schema;~~
+   - ~~output shape;~~
+   - ~~safety notes.~~
 7. ~~Добавить fake/test model runtime для тестов.~~
 8. ~~Сделать тесты, где fake model возвращает tool call.~~
 9. ~~Убедиться, что model не пишет в storage напрямую.~~
@@ -514,9 +514,9 @@ FTS5 по summary text.
 
 1. ~~Создать `src/pulsekeeper/storage/sqlite.py`.~~
 2. ~~Создать `Database` class:
-   - opens connection;
-   - applies migrations;
-   - transaction helper.~~
+   - ~~opens connection;~~
+   - ~~applies migrations;~~
+   - ~~transaction helper.~~
 3. ~~Создать migrations folder.~~
 4. ~~Реализовать initial schema.~~
 5. Реализовать stores:
@@ -585,11 +585,11 @@ FTS5 по summary text.
 2. ~~Keep fake provider as test default.~~
 3. ~~Add OpenAI-compatible provider construction seam.~~
 4. ~~Add config fields:
-   - provider;
-   - model;
-   - base_url;
-   - api_key_env;
-   - timeout.~~
+   - ~~provider;~~
+   - ~~model;~~
+   - ~~base_url;~~
+   - ~~api_key_env;~~
+   - ~~timeout.~~
 5. ~~Add `.env` loading / env based config.~~
 6. ~~Add secret redaction in config representation/errors where present.~~
 7. ~~Add provider construction tests without live API.~~
@@ -619,8 +619,8 @@ FTS5 по summary text.
    - ~~/profile~~;
    - ~~/reminders placeholder~~.
 3. ~~Allow only trivial system commands to bypass model:
-   - `/start`;
-   - `/help`.~~
+   - ~~/start~~;
+   - ~~/help~~.~~
 4. ~~Add minimal Telegram-safe formatting.~~
 5. ~~Add aiogram gateway tests with fake gateway/update + fake agent.~~
 6. ~~Slash commands with registered tool equivalents use store-backed typed paths; `/undo` remains deterministic store-backed until Phase 8 correction tools.~~

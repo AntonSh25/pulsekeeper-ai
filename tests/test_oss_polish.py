@@ -104,3 +104,8 @@ def test_implementation_plan_records_completed_mvp_status_consistently():
     assert "   - ~~tests;~~" in plan
     assert "   - ~~adapters;~~" in plan
     assert "   - ~~“вес 84.2”;~~" in plan
+    assert "   - ~~name;~~" in plan
+    assert "   - ~~input schema;~~" in plan
+    assert "   - ~~opens connection;~~" in plan
+    assert "   - ~~api_key_env;~~" in plan
+    assert "   - ~~/start~~;" in plan
