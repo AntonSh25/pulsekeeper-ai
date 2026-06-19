@@ -78,6 +78,17 @@ def test_readme_has_three_minute_quickstart_and_demo_artifact_references():
     assert "Do not use real health data" in screenshots
 
 
+def test_post_mvp_product_hardening_plan_starts_at_phase_16():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "# PulseKeeper — Next Phases After MVP" in plan
+    assert "## Phase 16" in plan
+    assert "16.1" in plan
+    assert "Behavior spec" in plan
+
+
 def test_implementation_plan_records_completed_mvp_status_consistently():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"
