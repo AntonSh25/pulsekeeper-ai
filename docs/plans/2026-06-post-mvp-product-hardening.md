@@ -6,7 +6,9 @@
 
 ---
 
-## Phase 16 — Agent behavior & communication design
+## ~~Phase 16 — Agent behavior & communication design~~
+
+**Phase 16 status:** ✅ Complete — behavior spec, onboarding, goals/tracking focus, communication cadence, prompt hardening, behavior contract tests, full pytest, and ruff have all passed in completed Phase 16 slices.
 
 ### Goal
 
@@ -540,13 +542,13 @@ All checks passed
 
 ### Phase 16 done when
 
-- `docs/product/agent-behavior.md` exists.
-- `/start` feels useful.
-- Agent prompt has explicit UX rules.
-- User goals can be captured.
-- Communication cadence is documented.
-- Behavior contract tests pass.
-- Full test suite and ruff are green.
+- ~~`docs/product/agent-behavior.md` exists.~~ ✅
+- ~~/start feels useful.~~ ✅
+- ~~Agent prompt has explicit UX rules.~~ ✅
+- ~~User goals can be captured.~~ ✅
+- ~~Communication cadence is documented.~~ ✅
+- ~~Behavior contract tests pass.~~ ✅
+- ~~Full test suite and ruff are green.~~ ✅
 
 ---
 

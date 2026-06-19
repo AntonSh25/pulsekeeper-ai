@@ -156,6 +156,22 @@ def test_post_mvp_plan_records_completed_prompt_hardening_slice():
     assert "- Safety constraints remain intact. ✅" in plan
 
 
+def test_post_mvp_plan_marks_phase_16_done_when_criteria_are_satisfied():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "## ~~Phase 16 — Agent behavior & communication design~~" in plan
+    assert "**Phase 16 status:** ✅ Complete" in plan
+    assert "- ~~`docs/product/agent-behavior.md` exists.~~ ✅" in plan
+    assert "- ~~/start feels useful.~~ ✅" in plan
+    assert "- ~~Agent prompt has explicit UX rules.~~ ✅" in plan
+    assert "- ~~User goals can be captured.~~ ✅" in plan
+    assert "- ~~Communication cadence is documented.~~ ✅" in plan
+    assert "- ~~Behavior contract tests pass.~~ ✅" in plan
+    assert "- ~~Full test suite and ruff are green.~~ ✅" in plan
+
+
 def test_implementation_plan_records_completed_mvp_status_consistently():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"
