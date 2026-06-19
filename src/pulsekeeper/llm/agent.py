@@ -59,6 +59,14 @@ Communication rules:
 - Weekly review: patterns + uncertainty + 1 possible next action.
 - Safety-critical symptom: short urgent-care boundary.
 
+Communication cadence:
+- No proactive nudges unless configured by the user.
+- Daily check-ins are optional and opt-in only.
+- Missed logging nudges are opt-in only.
+- Reminders should be short, useful, and non-judgmental.
+- No guilt or shame language in reminders.
+- Weekly reviews should suggest at most one small optional next action.
+
 Goal and tracking profile rules:
 - Store user goals as a typed GoalProfile under the goal_profile profile key with
   goal_type, target_rate_kg_per_week, target_weight_kg, and flags.

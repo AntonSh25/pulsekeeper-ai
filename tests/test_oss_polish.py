@@ -119,6 +119,21 @@ def test_post_mvp_plan_records_completed_user_goal_slice():
     assert "- `GoalProfile` читается обратно как типизированная структура" in plan
 
 
+def test_post_mvp_plan_records_completed_communication_cadence_slice():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "### ~~16.4 Communication cadence~~" in plan
+    assert "**Objective:** ~~Define when PulseKeeper should proactively communicate.~~" in plan
+    assert "**Status:** ✅ Complete" in plan
+    assert "communication-cadence.md" in plan
+    assert "- No proactive nudges unless configured. ✅" in plan
+    assert "- Reminders are useful and short. ✅" in plan
+    assert "- Weekly review suggests one small next action. ✅" in plan
+    assert "- No guilt/shame language. ✅" in plan
+
+
 def test_implementation_plan_records_completed_mvp_status_consistently():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"

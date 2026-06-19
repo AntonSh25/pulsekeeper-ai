@@ -52,7 +52,18 @@ class TelegramReminderScheduler:
 
 
 def reminder_text(reminder: Reminder) -> str:
-    return f"Reminder: {reminder.type}"
+    labels = {
+        "weight": "вес",
+        "sleep": "сон",
+        "training": "тренировку",
+        "workout": "тренировку",
+        "symptom": "самочувствие",
+        "medication": "лекарство",
+        "journal": "самочувствие",
+        "food": "еду",
+    }
+    label = labels.get(reminder.type.lower(), reminder.type)
+    return f"Короткое напоминание: можно записать {label} одной фразой."
 
 
 def next_due_after(reminder: Reminder, *, now: datetime) -> datetime | None:

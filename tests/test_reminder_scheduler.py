@@ -51,7 +51,7 @@ def test_scheduler_sends_due_daily_reminder_and_advances_to_next_local_day(tmp_p
             await scheduler.process_due(now=datetime(2026, 6, 14, 6, 0, tzinfo=UTC))
 
             updated = await store.get(reminder.id)
-            assert sent == [(222, "Reminder: weight")]
+            assert sent == [(222, "Короткое напоминание: можно записать вес одной фразой.")]
             assert updated is not None
             assert updated.last_sent_at == datetime(2026, 6, 14, 6, 0, tzinfo=UTC)
             assert updated.next_due_at == datetime(2026, 6, 15, 6, 0, tzinfo=UTC)
@@ -87,7 +87,9 @@ def test_scheduler_after_downtime_sends_once_and_skips_missed_daily_occurrences(
             await scheduler.process_due(now=datetime(2026, 6, 14, 20, 0, tzinfo=UTC))
 
             updated = await store.get(reminder.id)
-            assert sent == [(222, "Reminder: journal")]
+            assert sent == [
+                (222, "Короткое напоминание: можно записать самочувствие одной фразой.")
+            ]
             assert updated is not None
             assert updated.next_due_at == datetime(2026, 6, 15, 18, 30, tzinfo=UTC)
         finally:

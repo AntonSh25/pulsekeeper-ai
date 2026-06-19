@@ -261,14 +261,16 @@ Storage acceptance:
 
 ---
 
-### 16.4 Communication cadence
+### ~~16.4 Communication cadence~~
 
-**Objective:** Define when PulseKeeper should proactively communicate.
+**Objective:** ~~Define when PulseKeeper should proactively communicate.~~
+
+**Status:** ✅ Complete — `docs/product/communication-cadence.md` defines opt-in-only proactive cadence, `DEFAULT_POLICY_PROMPT` embeds the cadence boundaries, and `reminder_text` now sends short non-shaming reminder copy under `tests/test_communication_cadence.py`.
 
 **Files:**
 - Create: `docs/product/communication-cadence.md`
 - Modify: `src/pulsekeeper/llm/agent.py`
-- Modify: `src/pulsekeeper/reminders.py`
+- Modify: `src/pulsekeeper/reminder_scheduler.py`
 - Test: `tests/test_communication_cadence.py`
 
 **Cadence rules:**
@@ -313,10 +315,10 @@ Bad:
 
 ### Acceptance criteria
 
-- No proactive nudges unless configured.
-- Reminders are useful and short.
-- Weekly review suggests one small next action.
-- No guilt/shame language.
+- No proactive nudges unless configured. ✅
+- Reminders are useful and short. ✅
+- Weekly review suggests one small next action. ✅
+- No guilt/shame language. ✅
 
 ---
 
