@@ -41,3 +41,34 @@ def test_policy_prompt_embeds_behavior_spec_rules_for_agent_runtime():
     assert "loss of consciousness" in prompt
     assert "severe sudden pain" in prompt
     assert "not a calorie oracle" in prompt
+
+
+def test_policy_prompt_contains_phase_16_5_ux_and_goal_safety_rails():
+    prompt = " ".join(DEFAULT_POLICY_PROMPT.lower().split())
+
+    assert "if the user provides a clear health log" in prompt
+    assert "call the relevant tool" in prompt
+    assert "respond with one short confirmation" in prompt
+    assert "do not provide generic wellness education unless explicitly asked" in prompt
+    assert "prefer structured logging over free-form chat" in prompt
+    assert "if uncertain, say what is known and what is unknown" in prompt
+    assert (
+        "do not infer precise calories, macros, diagnoses, causes, or medication advice"
+        in prompt
+    )
+    assert "focus on observed patterns and data gaps" in prompt
+    assert "end longer summaries with at most one small optional next action" in prompt
+
+    assert "personalize to the user's goalprofile" in prompt
+    assert "do not blanket-refuse deficit talk" in prompt
+    assert "0.25-1.0% body weight / week" in prompt
+    assert "0.25-0.5% body weight / week" in prompt
+    assert "do not endorse intake below ~1200 kcal/day" in prompt
+    assert "not silently executed" in prompt
+    assert "not silently clamped" in prompt
+    assert "underweight -> do not support further loss" in prompt
+    assert "pregnancy -> no weight-loss deficit" in prompt
+    assert "declared ed history / clinical_supervision -> defer to professional" in prompt
+    assert "net-kcal/deficit shown only when goal-relevant" in prompt
+    assert "set ed_history only from an explicit user statement" in prompt
+    assert "never infer these flags from weight, food, symptoms, or tone" in prompt

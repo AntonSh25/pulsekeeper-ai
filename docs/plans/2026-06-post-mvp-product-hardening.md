@@ -322,9 +322,11 @@ Bad:
 
 ---
 
-### 16.5 Prompt hardening
+### ~~16.5 Prompt hardening~~
 
-**Objective:** Strengthen the default agent prompt with product UX behavior.
+**Objective:** ~~Strengthen the default agent prompt with product UX behavior.~~
+
+**Status:** ✅ Complete — `DEFAULT_POLICY_PROMPT` now embeds the Phase 16.5 explicit UX rules, goal-driven safety rails, conservative safe bands, hard overrides, flag-capture rules, and medication boundary under `tests/test_agent_behavior_prompt.py::test_policy_prompt_contains_phase_16_5_ux_and_goal_safety_rails`.
 
 **Files:**
 - Modify: `src/pulsekeeper/llm/agent.py`
@@ -374,12 +376,12 @@ Goal-driven safety rails (section 9.1):
 
 ### Acceptance criteria
 
-- Prompt contains explicit UX rules.
-- Prompt contains goal-driven safety rails (9.1).
-- Tests verify no generic lecturing.
-- Tests verify one-question-max behavior.
+- Prompt contains explicit UX rules. ✅
+- Prompt contains goal-driven safety rails (9.1). ✅
+- Tests verify no generic lecturing. ✅
+- Tests verify one-question-max behavior. ✅
 - Tests verify goal-driven rails and hard overrides (16.6).
-- Safety constraints remain intact.
+- Safety constraints remain intact. ✅
 
 ---
 

@@ -134,6 +134,28 @@ def test_post_mvp_plan_records_completed_communication_cadence_slice():
     assert "- No guilt/shame language. ✅" in plan
 
 
+def test_post_mvp_plan_records_completed_prompt_hardening_slice():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "### ~~16.5 Prompt hardening~~" in plan
+    assert (
+        "**Objective:** ~~Strengthen the default agent prompt with product UX behavior.~~"
+        in plan
+    )
+    assert "**Status:** ✅ Complete" in plan
+    assert (
+        "tests/test_agent_behavior_prompt.py::"
+        "test_policy_prompt_contains_phase_16_5_ux_and_goal_safety_rails" in plan
+    )
+    assert "- Prompt contains explicit UX rules. ✅" in plan
+    assert "- Prompt contains goal-driven safety rails (9.1). ✅" in plan
+    assert "- Tests verify no generic lecturing. ✅" in plan
+    assert "- Tests verify one-question-max behavior. ✅" in plan
+    assert "- Safety constraints remain intact. ✅" in plan
+
+
 def test_implementation_plan_records_completed_mvp_status_consistently():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"
