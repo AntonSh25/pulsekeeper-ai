@@ -574,7 +574,7 @@ After Phase 16, the product should have enough behavior design to test with real
 
 **Objective:** Run PulseKeeper locally with real Telegram bot and BYO-LLM credentials.
 
-**Status:** Partially verified — `uv run pulsekeeper doctor` now reports an actionable missing-config hint without leaking secrets. Live Telegram polling is not started yet because `~/.pulsekeeper/config.toml` is still missing in the cron environment.
+**Status:** Partially verified — `uv run pulsekeeper doctor` now reports an actionable missing-config hint without leaking secrets, and `uv run pulsekeeper telegram-run --max-iterations 0` also exits safely with the same redacted missing-config blocker. Live Telegram polling is not started yet because `~/.pulsekeeper/config.toml` is still missing in the cron environment. Next safe step: create `~/.pulsekeeper/config.toml` from `config.toml.example` with real Telegram and BYO-LLM credentials, then rerun `uv run pulsekeeper doctor` before starting polling.
 
 **Files:**
 - Use existing `.env`
@@ -590,7 +590,7 @@ uv run pulsekeeper telegram-run
 
 ### Acceptance criteria
 
-- Doctor passes or reports actionable redacted errors.
+- ~~Doctor passes or reports actionable redacted errors.~~ ✅
 - Bot starts without leaking token/API key.
 - Telegram polling receives messages.
 - aiogram offset handling корректен после рестарта (без кастомного offset-manager).

@@ -180,7 +180,10 @@ def test_post_mvp_plan_records_phase_17_1_actionable_doctor_blocker():
     assert "### 17.1 Local live run" in plan
     assert "**Status:** Partially verified" in plan
     assert "`uv run pulsekeeper doctor` now reports an actionable missing-config hint" in plan
+    assert "`uv run pulsekeeper telegram-run --max-iterations 0` also exits safely" in plan
     assert "`~/.pulsekeeper/config.toml` is still missing" in plan
+    assert "- ~~Doctor passes or reports actionable redacted errors.~~ ✅" in plan
+    assert "Next safe step: create `~/.pulsekeeper/config.toml` from `config.toml.example`" in plan
 
 
 def test_implementation_plan_records_completed_mvp_status_consistently():
