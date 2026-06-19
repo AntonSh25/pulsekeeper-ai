@@ -233,6 +233,15 @@ def test_start_and_help_bypass_model(tmp_path, monkeypatch):
             )
 
             assert "PulseKeeper" in start
+            assert "личный health-дневник" in start
+            assert "вес 82.4" in start
+            assert "завтрак омлет и кофе" in start
+            assert "напомни взвешиваться утром" in start
+            assert "локальной базе" in start
+            assert "BYO-LLM" in start
+            assert "не врач" in start
+            assert "часовом поясе" in start
+            assert len(start) <= 700
             assert "/today" in help_text
             assert "/week" in help_text
             assert "/remind" in help_text

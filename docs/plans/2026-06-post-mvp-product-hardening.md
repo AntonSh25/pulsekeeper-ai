@@ -136,9 +136,11 @@ Bad:
 
 ---
 
-### 16.2 Onboarding flow
+### ~~16.2 Onboarding flow~~
 
-**Objective:** Сделать `/start` не технической заглушкой, а нормальным первым опытом.
+**Objective:** ~~Сделать `/start` не технической заглушкой, а нормальным первым опытом.~~
+
+**Status:** ✅ Complete — `/start` now returns the Telegram-first onboarding text from this slice, bypasses the model, explains example messages, local storage, BYO-LLM provider boundary, medical safety boundary, and asks for the diary timezone under `tests/test_aiogram_gateway.py::test_start_and_help_bypass_model`.
 
 **Files:**
 - Modify: `src/pulsekeeper/gateway/telegram.py`
@@ -173,11 +175,11 @@ Then optionally ask:
 
 ### Acceptance criteria
 
-- `/start` is useful to a new user.
-- It explains what to write.
-- It mentions privacy/BYO-LLM/local storage.
-- It includes medical safety boundary.
-- It does not overwhelm the user.
+- `/start` is useful to a new user. ✅
+- It explains what to write. ✅
+- It mentions privacy/BYO-LLM/local storage. ✅
+- It includes medical safety boundary. ✅
+- It does not overwhelm the user. ✅
 
 ---
 

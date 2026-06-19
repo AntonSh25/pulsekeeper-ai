@@ -89,6 +89,21 @@ def test_post_mvp_product_hardening_plan_starts_at_phase_16():
     assert "Behavior spec" in plan
 
 
+def test_post_mvp_plan_records_completed_onboarding_slice():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "### ~~16.2 Onboarding flow~~" in plan
+    assert "**Objective:** ~~Сделать `/start`" in plan
+    assert "**Status:** ✅ Complete" in plan
+    assert "`/start` now returns the Telegram-first onboarding text" in plan
+    assert "- `/start` is useful to a new user. ✅" in plan
+    assert "- It explains what to write. ✅" in plan
+    assert "- It mentions privacy/BYO-LLM/local storage. ✅" in plan
+    assert "- It includes medical safety boundary. ✅" in plan
+    assert "- It does not overwhelm the user. ✅" in plan
+
 def test_implementation_plan_records_completed_mvp_status_consistently():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"

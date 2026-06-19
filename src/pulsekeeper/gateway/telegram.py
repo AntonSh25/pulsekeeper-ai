@@ -21,8 +21,18 @@ Router: Any = None
 CommandStart: Any = None
 
 START_TEXT = (
-    "PulseKeeper is ready. Send normal text to log or ask about your health journal.\n"
-    "Use /today or /week for deterministic entry summaries."
+    "Привет. Я PulseKeeper — личный health-дневник в Telegram.\n\n"
+    "Можно писать обычным текстом:\n"
+    "• вес 82.4\n"
+    "• завтрак омлет и кофе\n"
+    "• тренировка 45 минут\n"
+    "• болела голова вечером\n"
+    "• напомни взвешиваться утром\n"
+    "• дай сводку за неделю\n\n"
+    "Данные хранятся в твоей локальной базе. Текст сообщений может отправляться "
+    "выбранному тобой LLM-провайдеру (BYO-LLM: твой API-ключ или подписка).\n\n"
+    "Я не врач и не ставлю диагнозы, но помогу аккуратно вести журнал и замечать паттерны.\n\n"
+    "Для начала: в каком часовом поясе вести дневник?"
 )
 HELP_TEXT = (
     "PulseKeeper commands:\n"
