@@ -172,6 +172,17 @@ def test_post_mvp_plan_marks_phase_16_done_when_criteria_are_satisfied():
     assert "- ~~Full test suite and ruff are green.~~ ✅" in plan
 
 
+def test_post_mvp_plan_records_phase_17_1_actionable_doctor_blocker():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "### 17.1 Local live run" in plan
+    assert "**Status:** Partially verified" in plan
+    assert "`uv run pulsekeeper doctor` now reports an actionable missing-config hint" in plan
+    assert "`~/.pulsekeeper/config.toml` is still missing" in plan
+
+
 def test_implementation_plan_records_completed_mvp_status_consistently():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"

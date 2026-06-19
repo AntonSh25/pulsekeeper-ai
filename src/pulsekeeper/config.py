@@ -79,7 +79,10 @@ def load_config(path: Path | str, env_path: Path | str | None = None) -> PulseKe
     try:
         raw = tomllib.loads(config_path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
-        raise ConfigError(f"Config file not found: {config_path}") from exc
+        raise ConfigError(
+            f"Config file not found: {config_path}. "
+            "Copy config.toml.example into place or create ~/.pulsekeeper/config.toml."
+        ) from exc
     except tomllib.TOMLDecodeError as exc:
         raise ConfigError(f"Invalid TOML in {config_path}: {exc}") from exc
 

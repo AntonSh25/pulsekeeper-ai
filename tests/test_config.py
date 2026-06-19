@@ -162,6 +162,18 @@ api_key_env = "PULSEKEEPER_TEST_API_KEY"
     assert config.llm.api_key == "sk-test-from-os"
 
 
+def test_missing_config_file_error_includes_setup_hint(tmp_path):
+    missing_path = tmp_path / "config.toml"
+
+    with pytest.raises(ConfigError) as exc_info:
+        load_config(missing_path)
+
+    message = str(exc_info.value)
+    assert f"Config file not found: {missing_path}" in message
+    assert "Copy config.toml.example" in message
+    assert "create ~/.pulsekeeper/config.toml" in message
+
+
 def test_missing_api_key_mode_raises_clear_redacted_error(tmp_path, monkeypatch):
     config_path = tmp_path / "config.toml"
     config_path.write_text(

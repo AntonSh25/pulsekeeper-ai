@@ -574,6 +574,8 @@ After Phase 16, the product should have enough behavior design to test with real
 
 **Objective:** Run PulseKeeper locally with real Telegram bot and BYO-LLM credentials.
 
+**Status:** Partially verified — `uv run pulsekeeper doctor` now reports an actionable missing-config hint without leaking secrets. Live Telegram polling is not started yet because `~/.pulsekeeper/config.toml` is still missing in the cron environment.
+
 **Files:**
 - Use existing `.env`
 - Use existing `config.toml`
