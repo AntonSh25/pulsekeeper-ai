@@ -43,9 +43,11 @@
 
 ---
 
-### 16.1 Behavior spec
+### ~~16.1 Behavior spec~~
 
-**Objective:** Описать поведение PulseKeeper в явном markdown-документе.
+**Objective:** ~~Описать поведение PulseKeeper в явном markdown-документе.~~
+
+**Status:** ✅ Complete — `docs/product/agent-behavior.md` defines the behavior spec, and `DEFAULT_POLICY_PROMPT` embeds the Phase 16.1 voice, brevity, no-fake-precision, and urgent-care boundaries under `tests/test_agent_behavior_prompt.py`.
 
 **Files:**
 - Create: `docs/product/agent-behavior.md`
