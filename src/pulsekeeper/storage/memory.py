@@ -8,6 +8,7 @@ from sqlite3 import Row
 from typing import Any
 
 from pulsekeeper.domain import SummaryMemory, SummaryMemoryDraft
+from pulsekeeper.profile import GoalProfile, TrackingFocusList
 from pulsekeeper.storage.sqlite import Database
 
 
@@ -28,6 +29,7 @@ class ProfileStore:
         return _json_loads(row["value_json"])
 
     async def set_fact(self, user_id: int, key: str, value: Any, *, source: str) -> None:
+        value = _normalize_profile_fact(key, value)
         value_json = _json_dumps(value)
         updated_at = _datetime_to_storage(datetime.now(UTC))
         async with self.db.transaction() as conn:
@@ -51,6 +53,36 @@ class ProfileStore:
         if isinstance(value, str):
             return value
         return None
+
+    async def set_goal_profile(
+        self,
+        user_id: int,
+        goal_profile: GoalProfile | dict[str, Any],
+        *,
+        source: str,
+    ) -> None:
+        await self.set_fact(user_id, "goal_profile", goal_profile, source=source)
+
+    async def get_goal_profile(self, user_id: int) -> GoalProfile:
+        value = await self.get_fact(user_id, "goal_profile")
+        if value is None:
+            return GoalProfile()
+        return GoalProfile.model_validate(value)
+
+    async def set_tracking_focus(
+        self,
+        user_id: int,
+        tracking_focus: list[str],
+        *,
+        source: str,
+    ) -> None:
+        await self.set_fact(user_id, "tracking_focus", tracking_focus, source=source)
+
+    async def get_tracking_focus(self, user_id: int) -> list[str]:
+        value = await self.get_fact(user_id, "tracking_focus")
+        if value is None:
+            return []
+        return list(TrackingFocusList(items=value).items)
 
     async def list_facts(self, user_id: int) -> dict[str, Any]:
         rows = await self.db.fetchall(
@@ -205,6 +237,16 @@ class SummaryMemoryStore:
 
 def _json_dumps(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _normalize_profile_fact(key: str, value: Any) -> Any:
+    if key == "goal_profile":
+        if isinstance(value, GoalProfile):
+            return value.model_dump()
+        return GoalProfile.model_validate(value).model_dump()
+    if key == "tracking_focus":
+        return list(TrackingFocusList(items=value).items)
+    return value
 
 
 def _optional_json_dumps(value: Any | None) -> str | None:

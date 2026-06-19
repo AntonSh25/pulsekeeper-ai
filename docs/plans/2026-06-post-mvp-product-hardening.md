@@ -183,9 +183,11 @@ Then optionally ask:
 
 ---
 
-### 16.3 User goal and tracking focus
+### ~~16.3 User goal and tracking focus~~
 
-**Objective:** Захватить (а) цель пользователя через `GoalProfile` (раздел 9.1 спеки) и (б) опционально области трекинга — это РАЗНЫЕ вещи, не смешивать.
+**Objective:** ~~Захватить (а) цель пользователя через `GoalProfile` (раздел 9.1 спеки) и (б) опционально области трекинга — это РАЗНЫЕ вещи, не смешивать.~~
+
+**Status:** ✅ Complete — `GoalProfile` uses `Field(default_factory=list)`, `ProfileStore` stores typed JSON under separate `goal_profile` and `tracking_focus` keys, `DEFAULT_POLICY_PROMPT` tells the model to keep tracking focus separate from goals/flags, and `tests/test_user_goals.py` covers storage plus a pydantic-ai tool roundtrip for natural-language tracking focus capture.
 
 **Files:**
 - Modify: `src/pulsekeeper/llm/tools.py`
@@ -232,11 +234,11 @@ Expected behavior:
 
 ### Acceptance criteria
 
-- User can state goal and tracking focus in natural language.
-- `GoalProfile` хранится в профиле и доступен для 9.1-поведения и сводок.
-- Tracking focus хранится отдельно от goal_type.
-- Out-of-band цель (например `target_rate` сильно за полосой) НЕ принимается молча — см. 16.5/16.6.
-- No heavy onboarding wizard required.
+- User can state goal and tracking focus in natural language. ✅
+- `GoalProfile` хранится в профиле и доступен для 9.1-поведения и сводок. ✅
+- Tracking focus хранится отдельно от goal_type. ✅
+- Out-of-band цель (например `target_rate` сильно за полосой) НЕ принимается молча — см. 16.5/16.6. ✅ Prompt seam captured here; hard behavior tests remain in 16.5/16.6.
+- No heavy onboarding wizard required. ✅
 
 **Storage shape (обязательно):** профиль хранится как **типизированный JSON под выделенными ключами** в `user_store` (consistent со спекой: `ProfileStore.set_fact(key, value_json)`), НЕ как free-form текст в memory. Два независимых ключа:
 
@@ -253,9 +255,9 @@ Expected behavior:
 ```
 
 Storage acceptance:
-- `GoalProfile` читается обратно как типизированная структура (validated `GoalProfile`), не только как текст.
-- Обновление `tracking_focus` НЕ перезатирает `goal_profile`.
-- Обновление `goal_profile` НЕ перезатирает `tracking_focus`.
+- `GoalProfile` читается обратно как типизированная структура (validated `GoalProfile`), не только как текст. ✅
+- Обновление `tracking_focus` НЕ перезатирает `goal_profile`. ✅
+- Обновление `goal_profile` НЕ перезатирает `tracking_focus`. ✅
 
 ---
 

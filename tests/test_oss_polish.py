@@ -104,6 +104,21 @@ def test_post_mvp_plan_records_completed_onboarding_slice():
     assert "- It includes medical safety boundary. ✅" in plan
     assert "- It does not overwhelm the user. ✅" in plan
 
+
+def test_post_mvp_plan_records_completed_user_goal_slice():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "### ~~16.3 User goal and tracking focus~~" in plan
+    assert "**Status:** ✅ Complete" in plan
+    assert "`GoalProfile` uses `Field(default_factory=list)`" in plan
+    assert "- User can state goal and tracking focus in natural language. ✅" in plan
+    assert "- `GoalProfile` хранится в профиле" in plan
+    assert "- Tracking focus хранится отдельно от goal_type." in plan
+    assert "- `GoalProfile` читается обратно как типизированная структура" in plan
+
+
 def test_implementation_plan_records_completed_mvp_status_consistently():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"

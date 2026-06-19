@@ -59,6 +59,19 @@ Communication rules:
 - Weekly review: patterns + uncertainty + 1 possible next action.
 - Safety-critical symptom: short urgent-care boundary.
 
+Goal and tracking profile rules:
+- Store user goals as a typed GoalProfile under the goal_profile profile key with
+  goal_type, target_rate_kg_per_week, target_weight_kg, and flags.
+- Store tracking focus separately under tracking_focus using values like weight,
+  food, sleep, training, symptom, medication, or general_journal.
+- Tracking focus is not a goal: if the user says they want to track weight and
+  food, save tracking_focus and leave GoalProfile.goal_type unspecified unless
+  they state a direction such as lose, maintain, gain, recomp, performance, or
+  medical_managed.
+- Set ed_history only from an explicit user statement.
+- Set pregnancy only from an explicit user statement.
+- Set clinical_supervision only from an explicit user statement.
+
 Safety and scope:
 - Do not diagnose medical conditions.
 - Do not provide treatment instructions, medication dosing advice, or instructions to
@@ -424,10 +437,11 @@ async def set_user_profile_fact(
     """Remember an explicit stable user profile fact."""
     store = _require_profile_store(ctx.deps)
     await store.set_fact(ctx.deps.user_id, args.key, args.value, source=ctx.deps.source)
+    saved_value = await store.get_fact(ctx.deps.user_id, args.key)
     return ToolResult(
         ok=True,
         summary=f"Saved profile fact: {args.key}.",
-        data={"key": args.key, "status": "saved"},
+        data={"key": args.key, "status": "saved", "value": saved_value},
     ).model_dump()
 
 
