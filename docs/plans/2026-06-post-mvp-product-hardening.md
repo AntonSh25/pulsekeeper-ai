@@ -1067,27 +1067,28 @@ you already use, bring your own LLM, and it's fully open-source and auditable.
 
 ## Immediate next action
 
-Start with:
+Continue with:
 
 ```text
-Phase 16.1 — Behavior spec
+Phase 17.1 — Local live run
 ```
 
-Create:
+Current blocker: live Telegram polling cannot start in the cron environment because `~/.pulsekeeper/config.toml` is missing.
+
+Next safe local step:
 
 ```text
-docs/product/agent-behavior.md
+create `~/.pulsekeeper/config.toml` from `config.toml.example` with real Telegram and BYO-LLM credentials
 ```
 
-Then update:
+Then verify before starting polling:
 
-```text
-src/pulsekeeper/llm/agent.py
-tests/test_agent_behavior_prompt.py
-tests/test_agent_behavior_contract.py
+```bash
+uv run pulsekeeper doctor
+uv run pulsekeeper telegram-run --max-iterations 0
 ```
 
-Quality gate:
+Quality gate after credentials are configured:
 
 ```bash
 uv run pytest -q

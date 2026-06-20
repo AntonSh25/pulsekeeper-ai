@@ -200,6 +200,19 @@ def test_post_mvp_plan_records_phase_17_1_actionable_doctor_blocker():
     assert "Next safe step: create `~/.pulsekeeper/config.toml` from `config.toml.example`" in plan
 
 
+def test_post_mvp_plan_recommended_next_action_matches_phase_17_blocker():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "## ~~Phase 16 — Agent behavior & communication design~~" in plan
+    assert "## Phase 17 — Live dogfood" in plan
+    assert "Phase 17.1 — Local live run" in plan
+    assert "create `~/.pulsekeeper/config.toml` from `config.toml.example`" in plan
+    assert "Phase 16.1 — Behavior spec" not in plan
+    assert "docs/product/agent-behavior.md\n```\n\nThen update:" not in plan
+
+
 def test_implementation_plan_records_completed_mvp_status_consistently():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-13-implementation-plan-and-architecture.md"
