@@ -156,6 +156,20 @@ def test_post_mvp_plan_records_completed_prompt_hardening_slice():
     assert "- Safety constraints remain intact. ✅" in plan
 
 
+def test_post_mvp_plan_records_completed_behavior_contract_slice():
+    plan = (
+        ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"
+    ).read_text(encoding="utf-8")
+
+    assert "### ~~16.6 Behavior test suite~~" in plan
+    assert "**Objective:** ~~Lock desired user experience with tests.~~" in plan
+    assert "**Status:** ✅ Complete" in plan
+    assert "- Tests verify goal-driven rails and hard overrides (16.6). ✅" in plan
+    assert "tests/test_agent_behavior_prompt.py" in plan
+    assert "tests/test_communication_cadence.py" in plan
+    assert "tests/test_aiogram_gateway.py" in plan
+
+
 def test_post_mvp_plan_marks_phase_16_done_when_criteria_are_satisfied():
     plan = (
         ROOT / "docs" / "plans" / "2026-06-post-mvp-product-hardening.md"

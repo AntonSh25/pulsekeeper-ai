@@ -382,14 +382,16 @@ Goal-driven safety rails (section 9.1):
 - Prompt contains goal-driven safety rails (9.1). ✅
 - Tests verify no generic lecturing. ✅
 - Tests verify one-question-max behavior. ✅
-- Tests verify goal-driven rails and hard overrides (16.6).
+- Tests verify goal-driven rails and hard overrides (16.6). ✅
 - Safety constraints remain intact. ✅
 
 ---
 
-### 16.6 Behavior test suite
+### ~~16.6 Behavior test suite~~
 
-**Objective:** Lock desired user experience with tests.
+**Objective:** ~~Lock desired user experience with tests.~~
+
+**Status:** ✅ Complete — Phase 16 behavior contract is locked by the runtime prompt and gateway/cadence tests already in the suite: `tests/test_agent_behavior_prompt.py` covers concise logging behavior, no fake precision, urgent-care triggers, goal-driven rails, hard overrides, flag capture, and medication boundaries; `tests/test_aiogram_gateway.py` covers `/start` and deterministic command UX; `tests/test_communication_cadence.py` covers reminder cadence/copy. Full pytest and ruff were green before Phase 16 was closed.
 
 **Files:**
 - Create: `tests/test_agent_behavior_contract.py`
